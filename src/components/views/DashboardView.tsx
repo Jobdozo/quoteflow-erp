@@ -15,6 +15,7 @@ import {
   PackagePlus,
   Clock,
   MoreVertical,
+  Inbox,
 } from 'lucide-react';
 import { Quotation, FollowUp, QuotationStatus } from '../../types';
 import { NavTab } from '../layout/Sidebar';
@@ -36,14 +37,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSendWhatsApp,
   onSendEmail,
 }) => {
-  // Compute metrics from actual state or realistic dashboard defaults
-  const totalCount = quotations.length || 128;
-  const sentCount = quotations.filter((q) => q.status === 'Sent').length || 42;
-  const viewedCount = quotations.filter((q) => q.status === 'Viewed').length || 27;
-  const approvedCount = quotations.filter((q) => q.status === 'Approved').length || 15;
-  const rejectedCount = quotations.filter((q) => q.status === 'Rejected').length || 8;
+  // Compute metrics from actual state — strict 0 when empty
+  const totalCount = quotations.length;
+  const sentCount = quotations.filter((q) => q.status === 'Sent').length;
+  const viewedCount = quotations.filter((q) => q.status === 'Viewed').length;
+  const approvedCount = quotations.filter((q) => q.status === 'Approved').length;
+  const rejectedCount = quotations.filter((q) => q.status === 'Rejected').length;
 
-  const totalValue = quotations.reduce((acc, q) => acc + q.grandTotal, 0) || 1875420;
+  const totalValue = quotations.reduce((acc, q) => acc + q.grandTotal, 0);
 
   const getStatusBadge = (status: QuotationStatus) => {
     switch (status) {
@@ -74,7 +75,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Welcome back, <span className="font-semibold text-slate-800">Ankit Sharma</span>! Here is your quotation overview for today.
+          Welcome back! Here is your quotation overview for today.
         </p>
       </div>
 
@@ -87,7 +88,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <FileText className="w-6 h-6" />
             </div>
             <span className="inline-flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-              <TrendingUp className="w-3 h-3 mr-1" /> 18%
+              <TrendingUp className="w-3 h-3 mr-1" /> {totalCount > 0 ? 'Live' : '0%'}
             </span>
           </div>
           <div className="mt-3">
@@ -103,7 +104,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <Send className="w-6 h-6" />
             </div>
             <span className="inline-flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-              <TrendingUp className="w-3 h-3 mr-1" /> 12%
+              <TrendingUp className="w-3 h-3 mr-1" /> {sentCount > 0 ? `${Math.round((sentCount / (totalCount || 1)) * 100)}%` : '0%'}
             </span>
           </div>
           <div className="mt-3">
@@ -118,8 +119,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Eye className="w-6 h-6" />
             </div>
-            <span className="inline-flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-              <TrendingUp className="w-3 h-3 mr-1" /> 8%
+            <span className="inline-flex items-center text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+              <TrendingUp className="w-3 h-3 mr-1" /> {viewedCount > 0 ? `${Math.round((viewedCount / (totalCount || 1)) * 100)}%` : '0%'}
             </span>
           </div>
           <div className="mt-3">
@@ -135,7 +136,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <span className="inline-flex items-center text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-              <TrendingUp className="w-3 h-3 mr-1" /> 25%
+              <TrendingUp className="w-3 h-3 mr-1" /> {approvedCount > 0 ? `${Math.round((approvedCount / (totalCount || 1)) * 100)}%` : '0%'}
             </span>
           </div>
           <div className="mt-3">
@@ -151,7 +152,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <XCircle className="w-6 h-6" />
             </div>
             <span className="inline-flex items-center text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
-              <TrendingDown className="w-3 h-3 mr-1" /> 3%
+              <TrendingDown className="w-3 h-3 mr-1" /> {rejectedCount > 0 ? `${Math.round((rejectedCount / (totalCount || 1)) * 100)}%` : '0%'}
             </span>
           </div>
           <div className="mt-3">
@@ -174,7 +175,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </select>
           </div>
 
-          {/* SVG Line Curve Visualization matching mockup */}
+          {/* SVG Line Curve Visualization */}
           <div className="relative w-full h-56 flex flex-col justify-end">
             <svg className="w-full h-44 overflow-visible" viewBox="0 0 500 150">
               <defs>
@@ -183,44 +184,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              {/* Grid Lines */}
               <line x1="0" y1="30" x2="500" y2="30" stroke="#f1f5f9" strokeWidth="1.5" />
               <line x1="0" y1="70" x2="500" y2="70" stroke="#f1f5f9" strokeWidth="1.5" />
               <line x1="0" y1="110" x2="500" y2="110" stroke="#f1f5f9" strokeWidth="1.5" />
 
-              {/* Area Under Curve */}
-              <path
-                d="M 10 120 C 50 80, 80 130, 120 70 C 160 40, 190 90, 240 40 C 290 90, 340 50, 400 45 C 440 20, 470 70, 490 50 L 490 150 L 10 150 Z"
-                fill="url(#blueGradient)"
-              />
-              {/* Curve Stroke */}
-              <path
-                d="M 10 120 C 50 80, 80 130, 120 70 C 160 40, 190 90, 240 40 C 290 90, 340 50, 400 45 C 440 20, 470 70, 490 50"
-                fill="none"
-                stroke="#4f46e5"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-
-              {/* Data point 18 May highlight matching mockup */}
-              <circle cx="240" cy="40" r="6" fill="#4f46e5" stroke="#ffffff" strokeWidth="3" />
+              {totalCount > 0 ? (
+                <>
+                  <path
+                    d="M 10 120 C 50 80, 80 130, 120 70 C 160 40, 190 90, 240 40 C 290 90, 340 50, 400 45 C 440 20, 470 70, 490 50 L 490 150 L 10 150 Z"
+                    fill="url(#blueGradient)"
+                  />
+                  <path
+                    d="M 10 120 C 50 80, 80 130, 120 70 C 160 40, 190 90, 240 40 C 290 90, 340 50, 400 45 C 440 20, 470 70, 490 50"
+                    fill="none" stroke="#4f46e5" strokeWidth="3.5" strokeLinecap="round"
+                  />
+                </>
+              ) : (
+                <line x1="10" y1="120" x2="490" y2="120" stroke="#cbd5e1" strokeWidth="2" strokeDasharray="4 4" />
+              )}
             </svg>
 
-            {/* Active Tooltip matching mockup */}
-            <div className="absolute left-[44%] top-4 -translate-x-1/2 bg-slate-900 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg shadow-xl border border-slate-700 flex flex-col items-center">
-              <span>18 May</span>
-              <span className="text-indigo-300 font-bold">28 Quotations</span>
-            </div>
+            {totalCount > 0 ? (
+              <div className="absolute left-[44%] top-4 -translate-x-1/2 bg-slate-900 text-white text-[11px] font-semibold px-2.5 py-1 rounded-lg shadow-xl border border-slate-700 flex flex-col items-center">
+                <span>Active Data</span>
+                <span className="text-indigo-300 font-bold">{totalCount} Quotation{totalCount > 1 ? 's' : ''}</span>
+              </div>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-xs italic font-medium">
+                No quotation trend data yet. Create a quotation to see live analytics.
+              </div>
+            )}
 
-            {/* X Axis labels */}
             <div className="flex justify-between text-[10px] text-slate-400 font-medium pt-3 px-2 border-t border-slate-100">
-              <span>1 May</span>
-              <span>5 May</span>
-              <span>10 May</span>
-              <span>15 May</span>
-              <span>20 May</span>
-              <span>25 May</span>
-              <span>31 May</span>
+              <span>Week 1</span>
+              <span>Week 2</span>
+              <span>Week 3</span>
+              <span>Week 4</span>
             </div>
           </div>
         </div>
@@ -228,91 +227,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Total Value Donut Chart */}
         <div className="lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-400 tracking-wide uppercase">Total Value</span>
+            <span className="text-xs font-semibold text-slate-400 tracking-wide uppercase">Total Pipeline Value</span>
             <h3 className="text-2xl font-extrabold text-slate-900 mt-1">
               ₹ {totalValue.toLocaleString('en-IN')}
             </h3>
             <span className="inline-flex items-center text-xs font-semibold text-emerald-600 mt-0.5">
-              <TrendingUp className="w-3 h-3 mr-1" /> 22% this month
+              <TrendingUp className="w-3 h-3 mr-1" /> {totalValue > 0 ? 'Active' : '₹0.00'}
             </span>
           </div>
 
-          {/* Donut Chart Graphic */}
           <div className="my-4 flex items-center justify-center relative">
             <svg className="w-36 h-36 transform -rotate-90">
-              {/* Circle segments */}
               <circle cx="72" cy="72" r="54" stroke="#e2e8f0" strokeWidth="18" fill="transparent" />
-              {/* Approved 40% */}
-              <circle
-                cx="72"
-                cy="72"
-                r="54"
-                stroke="#10b981"
-                strokeWidth="18"
-                strokeDasharray="339"
-                strokeDashoffset="203"
-                fill="transparent"
-              />
-              {/* Pending 30% */}
-              <circle
-                cx="72"
-                cy="72"
-                r="54"
-                stroke="#f59e0b"
-                strokeWidth="18"
-                strokeDasharray="339"
-                strokeDashoffset="254"
-                fill="transparent"
-                className="transform origin-center rotate-[144deg]"
-              />
-              {/* Negotiation 20% */}
-              <circle
-                cx="72"
-                cy="72"
-                r="54"
-                stroke="#6366f1"
-                strokeWidth="18"
-                strokeDasharray="339"
-                strokeDashoffset="271"
-                fill="transparent"
-                className="transform origin-center rotate-[252deg]"
-              />
-              {/* Rejected 10% */}
-              <circle
-                cx="72"
-                cy="72"
-                r="54"
-                stroke="#f43f5e"
-                strokeWidth="18"
-                strokeDasharray="339"
-                strokeDashoffset="305"
-                fill="transparent"
-                className="transform origin-center rotate-[324deg]"
-              />
+              {totalValue > 0 && (
+                <circle cx="72" cy="72" r="54" stroke="#10b981" strokeWidth="18" strokeDasharray="339" strokeDashoffset="100" fill="transparent" />
+              )}
             </svg>
           </div>
 
-          {/* Donut Legend */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               <span className="text-slate-600 font-medium">Approved</span>
-              <span className="text-slate-900 font-bold ml-auto">40%</span>
+              <span className="text-slate-900 font-bold ml-auto">{totalCount > 0 ? `${Math.round((approvedCount / totalCount) * 100)}%` : '0%'}</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              <span className="text-slate-600 font-medium">Pending</span>
-              <span className="text-slate-900 font-bold ml-auto">30%</span>
+              <span className="text-slate-600 font-medium">Viewed</span>
+              <span className="text-slate-900 font-bold ml-auto">{totalCount > 0 ? `${Math.round((viewedCount / totalCount) * 100)}%` : '0%'}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-              <span className="text-slate-600 font-medium">Negotiation</span>
-              <span className="text-slate-900 font-bold ml-auto">20%</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="text-slate-600 font-medium">Sent</span>
+              <span className="text-slate-900 font-bold ml-auto">{totalCount > 0 ? `${Math.round((sentCount / totalCount) * 100)}%` : '0%'}</span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
               <span className="text-slate-600 font-medium">Rejected</span>
-              <span className="text-slate-900 font-bold ml-auto">10%</span>
+              <span className="text-slate-900 font-bold ml-auto">{totalCount > 0 ? `${Math.round((rejectedCount / totalCount) * 100)}%` : '0%'}</span>
             </div>
           </div>
         </div>
@@ -331,34 +283,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="space-y-3">
-              {followUps.slice(0, 5).map((fu) => (
-                <div key={fu.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 border border-slate-100 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
-                      {fu.companyName.substring(0, 2).toUpperCase()}
+              {followUps.length > 0 ? (
+                followUps.slice(0, 5).map((fu) => (
+                  <div key={fu.id} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 border border-slate-100 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
+                        {fu.companyName.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 line-clamp-1">{fu.companyName}</h4>
+                        <p className="text-[11px] text-slate-400">Quotation #{fu.quotationNumber}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800 line-clamp-1">{fu.companyName}</h4>
-                      <p className="text-[11px] text-slate-400">Quotation #{fu.quotationNumber}</p>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full block bg-indigo-100 text-indigo-700">
+                        {fu.reminderStage}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">{fu.type}</span>
                     </div>
                   </div>
-
-                  <div className="text-right">
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full block ${
-                        fu.status === 'Overdue'
-                          ? 'bg-rose-100 text-rose-700'
-                          : fu.reminderStage === '2 Days'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-emerald-100 text-emerald-700'
-                      }`}
-                    >
-                      {fu.reminderStage}
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-medium">{fu.type}</span>
-                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center text-slate-400 text-xs italic space-y-1">
+                  <Inbox className="w-8 h-8 text-slate-300 mx-auto" />
+                  <p>No follow-ups due right now.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -366,7 +316,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onClick={() => onNavigate('follow-ups')}
             className="mt-4 w-full text-center text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-2.5 rounded-xl transition-colors"
           >
-            View All Follow Ups
+            Manage Follow Ups
           </button>
         </div>
       </div>
@@ -386,71 +336,76 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="text-slate-400 font-semibold border-b border-slate-100">
-                  <th className="py-2.5 px-3">Quotation No.</th>
-                  <th className="py-2.5 px-3">Customer</th>
-                  <th className="py-2.5 px-3">Date</th>
-                  <th className="py-2.5 px-3">Amount</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {quotations.slice(0, 5).map((q) => (
-                  <tr key={q.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-3 font-semibold text-slate-800">{q.quotationNumber}</td>
-                    <td className="py-3 px-3 font-medium text-slate-700">{q.companyName}</td>
-                    <td className="py-3 px-3 text-slate-500">{q.date}</td>
-                    <td className="py-3 px-3 font-bold text-slate-900">₹ {q.grandTotal.toLocaleString('en-IN')}</td>
-                    <td className="py-3 px-3">
-                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${getStatusBadge(q.status)}`}>
-                        {q.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <div className="flex items-center justify-end space-x-1.5">
-                        <button
-                          onClick={() => onSelectQuotation(q)}
-                          title="View & Generate PDF"
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => onSendWhatsApp(q)}
-                          title="Send via WhatsApp"
-                          className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => onSendEmail(q)}
-                          title="Send via Email"
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Mail className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+            {quotations.length > 0 ? (
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="text-slate-400 font-semibold border-b border-slate-100">
+                    <th className="py-2.5 px-3">Quotation No.</th>
+                    <th className="py-2.5 px-3">Customer</th>
+                    <th className="py-2.5 px-3">Date</th>
+                    <th className="py-2.5 px-3">Amount</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="text-center pt-4 border-t border-slate-100 mt-2">
-            <button
-              onClick={() => onNavigate('quotations')}
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-            >
-              View All Quotations
-            </button>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {quotations.slice(0, 5).map((q) => (
+                    <tr key={q.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-3 font-semibold text-slate-800">{q.quotationNumber}</td>
+                      <td className="py-3 px-3 font-medium text-slate-700">{q.companyName}</td>
+                      <td className="py-3 px-3 text-slate-500">{q.date}</td>
+                      <td className="py-3 px-3 font-bold text-slate-900">₹ {q.grandTotal.toLocaleString('en-IN')}</td>
+                      <td className="py-3 px-3">
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${getStatusBadge(q.status)}`}>
+                          {q.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="flex items-center justify-end space-x-1.5">
+                          <button
+                            onClick={() => onSelectQuotation(q)}
+                            title="View & Generate PDF"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onSendWhatsApp(q)}
+                            title="Send via WhatsApp"
+                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onSendEmail(q)}
+                            title="Send via Email"
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="py-12 text-center text-slate-400 text-xs space-y-2">
+                <Inbox className="w-10 h-10 text-slate-300 mx-auto" />
+                <p className="font-semibold text-slate-600">No quotations found in database.</p>
+                <p className="text-slate-400">Click "+ New Quotation" to create your first quotation.</p>
+                <button
+                  onClick={() => onNavigate('new-quotation')}
+                  className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition-colors"
+                >
+                  + Create First Quotation
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Quick Actions Grid matching mockup */}
+        {/* Quick Actions Grid */}
         <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div>
             <h3 className="font-bold text-slate-800 text-base mb-4">Quick Actions</h3>

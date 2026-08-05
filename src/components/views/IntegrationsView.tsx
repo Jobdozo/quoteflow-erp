@@ -19,6 +19,7 @@ import {
   CreditCard,
   Cloud,
   Calendar as CalendarIcon,
+  ShieldCheck,
 } from 'lucide-react';
 import { StorageService } from '../../utils/storage';
 
@@ -46,6 +47,19 @@ export const IntegrationsView: React.FC = () => {
   }, []);
 
   const integrationsList = [
+    {
+      id: 'recaptcha',
+      name: 'Google reCAPTCHA v3 & Bot Shield',
+      category: 'Security',
+      icon: '🛡️',
+      description: 'Protect authentication login forms, public quote request pages, and API endpoints against automated spam bots and brute-force attacks.',
+      defaultFields: {
+        recaptchaSiteKey: '6Ld_a10bAAAAA_YourPublicSiteKeyHere',
+        recaptchaSecretKey: '6Ld_a10bAAAAA_YourPrivateSecretKeyHere',
+        minimumScoreThreshold: '0.5',
+        actionScope: 'login_form, quote_builder, lead_form',
+      },
+    },
     {
       id: 'whatsapp',
       name: 'WhatsApp Business API',
@@ -168,14 +182,14 @@ export const IntegrationsView: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Enterprise Integrations Hub</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure Meta WhatsApp API, SendGrid Email, Razorpay Payment Gateway, Tally ERP, and Cloud Storage.
+            Configure Google reCAPTCHA v3 Secret Keys, Meta WhatsApp API, SendGrid Email, Razorpay Payment Gateway, Tally ERP, and Cloud Storage.
           </p>
         </div>
 
         <div className="flex items-center space-x-2">
           <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center space-x-1.5">
             <Zap className="w-3.5 h-3.5 text-emerald-600" />
-            <span>6 Active Connectors</span>
+            <span>7 Active Connectors</span>
           </span>
         </div>
       </div>

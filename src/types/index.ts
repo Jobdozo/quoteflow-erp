@@ -192,6 +192,15 @@ export interface FollowUp {
   amount: number;
 }
 
+export interface PixelEvent {
+  eventType: 'open' | 'click';
+  timestamp: string;
+  ipAddress: string;
+  city: string;
+  device: string;
+  os: string;
+}
+
 export interface EmailLog {
   id: string;
   quotationId: string;
@@ -199,10 +208,34 @@ export interface EmailLog {
   customerEmail: string;
   customerName: string;
   subject: string;
+  body?: string;
+  cc?: string;
+  bcc?: string;
   status: 'Sent' | 'Delivered' | 'Opened' | 'Clicked';
   sentAt: string;
   openedAt?: string;
+  lastOpenedAt?: string;
+  openCount?: number;
+  clickCount?: number;
+  deviceType?: string;
   trackingPixelId: string;
+  pixelEvents?: PixelEvent[];
+  attachmentName?: string;
+}
+
+export interface InboxEmail {
+  id: string;
+  fromName: string;
+  fromEmail: string;
+  subject: string;
+  preview: string;
+  body: string;
+  receivedAt: string;
+  isRead: boolean;
+  isStarred: boolean;
+  hasAttachment: boolean;
+  attachmentName?: string;
+  category: 'inquiry' | 'reply' | 'payment' | 'complaint' | 'general';
 }
 
 export interface WhatsAppLog {

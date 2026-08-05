@@ -16,7 +16,7 @@ import {
 } from '../types';
 import { initialCompanySettings } from '../data/mockData';
 
-const KEYS = {
+const BASE_KEYS = {
   QUOTATIONS: 'quoteflow_quotations',
   INVOICES: 'quoteflow_invoices',
   CUSTOMERS: 'quoteflow_customers',
@@ -29,26 +29,12 @@ const KEYS = {
   SETTINGS: 'quoteflow_settings',
   AUDIT_LOGS: 'quoteflow_audit_logs',
   EVENTS: 'quoteflow_events',
-  CLEAN_FLAG: 'quoteflow_seeded_data_purged_v2',
 };
 
-// Auto purge legacy seeded mock data once on boot
-if (typeof window !== 'undefined') {
-  try {
-    if (!localStorage.getItem(KEYS.CLEAN_FLAG)) {
-      localStorage.removeItem(KEYS.QUOTATIONS);
-      localStorage.removeItem(KEYS.INVOICES);
-      localStorage.removeItem(KEYS.CUSTOMERS);
-      localStorage.removeItem(KEYS.PRODUCTS);
-      localStorage.removeItem(KEYS.FOLLOW_UPS);
-      localStorage.removeItem(KEYS.TEAM_MEMBERS);
-      localStorage.removeItem(KEYS.AUDIT_LOGS);
-      localStorage.removeItem(KEYS.EVENTS);
-      localStorage.setItem(KEYS.CLEAN_FLAG, 'true');
-    }
-  } catch (e) {
-    console.warn('Storage purge error:', e);
-  }
+function getScopedKey(baseKey: string, userId?: string): string {
+  if (!userId) return baseKey;
+  const safeId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${baseKey}_user_${safeId}`;
 }
 
 function getItem<T>(key: string, defaultValue: T): T {
@@ -71,53 +57,57 @@ function setItem<T>(key: string, value: T): void {
 
 export const StorageService = {
   // Calendar Events
-  getEvents(): CalendarEvent[] {
-    return getItem(KEYS.EVENTS, []);
+  getEvents(userId?: string): CalendarEvent[] {
+    return getItem(getScopedKey(BASE_KEYS.EVENTS, userId), []);
   },
-  saveEvent(event: CalendarEvent): CalendarEvent[] {
-    const list = this.getEvents();
+  saveEvent(event: CalendarEvent, userId?: string): CalendarEvent[] {
+    const key = getScopedKey(BASE_KEYS.EVENTS, userId);
+    const list = getItem<CalendarEvent[]>(key, []);
     const index = list.findIndex((e) => e.id === event.id);
     if (index >= 0) {
       list[index] = event;
     } else {
       list.unshift(event);
     }
-    setItem(KEYS.EVENTS, list);
-    this.addAuditLog(`Scheduled Event: ${event.title}`, 'Calendar & Schedules');
+    setItem(key, list);
+    this.addAuditLog(`Scheduled Event: ${event.title}`, 'Calendar & Schedules', userId);
     return list;
   },
-  deleteEvent(id: string): CalendarEvent[] {
-    const list = this.getEvents();
+  deleteEvent(id: string, userId?: string): CalendarEvent[] {
+    const key = getScopedKey(BASE_KEYS.EVENTS, userId);
+    const list = getItem<CalendarEvent[]>(key, []);
     const updated = list.filter((e) => e.id !== id);
-    setItem(KEYS.EVENTS, updated);
+    setItem(key, updated);
     return updated;
   },
 
   // Audit Logs
-  getAuditLogs(): AuditLog[] {
-    return getItem(KEYS.AUDIT_LOGS, []);
+  getAuditLogs(userId?: string): AuditLog[] {
+    return getItem(getScopedKey(BASE_KEYS.AUDIT_LOGS, userId), []);
   },
-  addAuditLog(action: string, module: string): AuditLog[] {
-    const logs = this.getAuditLogs();
+  addAuditLog(action: string, module: string, userId?: string): AuditLog[] {
+    const key = getScopedKey(BASE_KEYS.AUDIT_LOGS, userId);
+    const logs = getItem<AuditLog[]>(key, []);
     const newLog: AuditLog = {
       id: `log-${Date.now()}`,
-      user: 'User',
+      user: userId || 'Authenticated User',
       action,
       module,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
       ipAddress: '192.168.1.45',
     };
     logs.unshift(newLog);
-    setItem(KEYS.AUDIT_LOGS, logs);
+    setItem(key, logs);
     return logs;
   },
 
   // Quotations
-  getQuotations(): Quotation[] {
-    return getItem(KEYS.QUOTATIONS, []);
+  getQuotations(userId?: string): Quotation[] {
+    return getItem(getScopedKey(BASE_KEYS.QUOTATIONS, userId), []);
   },
-  saveQuotation(quotation: Quotation): Quotation[] {
-    const list = this.getQuotations();
+  saveQuotation(quotation: Quotation, userId?: string): Quotation[] {
+    const key = getScopedKey(BASE_KEYS.QUOTATIONS, userId);
+    const list = getItem<Quotation[]>(key, []);
     const existingIndex = list.findIndex((q) => q.id === quotation.id);
 
     if (existingIndex >= 0) {
@@ -125,53 +115,58 @@ export const StorageService = {
     } else {
       list.unshift(quotation);
     }
-    setItem(KEYS.QUOTATIONS, list);
+    setItem(key, list);
     this.addAuditLog(
       `${existingIndex >= 0 ? 'Updated' : 'Created'} Quotation ${quotation.quotationNumber} (${quotation.companyName})`,
-      'Quotations CRM'
+      'Quotations CRM',
+      userId
     );
     return list;
   },
-  deleteQuotation(id: string): Quotation[] {
-    const list = this.getQuotations();
+  deleteQuotation(id: string, userId?: string): Quotation[] {
+    const key = getScopedKey(BASE_KEYS.QUOTATIONS, userId);
+    const list = getItem<Quotation[]>(key, []);
     const q = list.find((item) => item.id === id);
     const updated = list.filter((item) => item.id !== id);
-    setItem(KEYS.QUOTATIONS, updated);
+    setItem(key, updated);
     if (q) {
-      this.addAuditLog(`Deleted Quotation ${q.quotationNumber}`, 'Quotations CRM');
+      this.addAuditLog(`Deleted Quotation ${q.quotationNumber}`, 'Quotations CRM', userId);
     }
     return updated;
   },
-  updateQuotationStatus(id: string, status: QuotationStatus): Quotation[] {
-    const list = this.getQuotations();
+  updateQuotationStatus(id: string, status: QuotationStatus, userId?: string): Quotation[] {
+    const key = getScopedKey(BASE_KEYS.QUOTATIONS, userId);
+    const list = getItem<Quotation[]>(key, []);
     const q = list.find((item) => item.id === id);
     if (q) {
       q.status = status;
       q.updatedAt = new Date().toISOString();
-      setItem(KEYS.QUOTATIONS, list);
-      this.addAuditLog(`Updated Status for ${q.quotationNumber} -> ${status}`, 'Quotations CRM');
+      setItem(key, list);
+      this.addAuditLog(`Updated Status for ${q.quotationNumber} -> ${status}`, 'Quotations CRM', userId);
     }
     return list;
   },
 
   // Invoices & Monthly Billing
-  getInvoices(): MonthlyInvoice[] {
-    return getItem(KEYS.INVOICES, []);
+  getInvoices(userId?: string): MonthlyInvoice[] {
+    return getItem(getScopedKey(BASE_KEYS.INVOICES, userId), []);
   },
-  saveInvoice(invoice: MonthlyInvoice): MonthlyInvoice[] {
-    const list = this.getInvoices();
+  saveInvoice(invoice: MonthlyInvoice, userId?: string): MonthlyInvoice[] {
+    const key = getScopedKey(BASE_KEYS.INVOICES, userId);
+    const list = getItem<MonthlyInvoice[]>(key, []);
     const index = list.findIndex((inv) => inv.id === invoice.id);
     if (index >= 0) {
       list[index] = invoice;
     } else {
       list.unshift(invoice);
     }
-    setItem(KEYS.INVOICES, list);
-    this.addAuditLog(`Generated Invoice ${invoice.invoiceNumber} for ${invoice.companyName}`, 'Monthly Billing');
+    setItem(key, list);
+    this.addAuditLog(`Generated Invoice ${invoice.invoiceNumber} for ${invoice.companyName}`, 'Monthly Billing', userId);
     return list;
   },
-  recordPayment(invoiceId: string, payment: Omit<PaymentRecord, 'id'>): MonthlyInvoice[] {
-    const list = this.getInvoices();
+  recordPayment(invoiceId: string, payment: Omit<PaymentRecord, 'id'>, userId?: string): MonthlyInvoice[] {
+    const key = getScopedKey(BASE_KEYS.INVOICES, userId);
+    const list = getItem<MonthlyInvoice[]>(key, []);
     const invoice = list.find((inv) => inv.id === invoiceId);
     if (invoice) {
       const newPayment: PaymentRecord = {
@@ -187,143 +182,141 @@ export const StorageService = {
       } else if (invoice.paidAmount > 0) {
         invoice.status = 'Partially Paid';
       }
-      setItem(KEYS.INVOICES, list);
-      this.addAuditLog(`Recorded ₹${payment.amountPaid} Payment for Invoice ${invoice.invoiceNumber}`, 'Monthly Billing');
+      setItem(key, list);
+      this.addAuditLog(`Recorded ₹${payment.amountPaid} Payment for Invoice ${invoice.invoiceNumber}`, 'Monthly Billing', userId);
     }
     return list;
   },
 
   // Customers (CRM)
-  getCustomers(): Customer[] {
-    return getItem(KEYS.CUSTOMERS, []);
+  getCustomers(userId?: string): Customer[] {
+    return getItem(getScopedKey(BASE_KEYS.CUSTOMERS, userId), []);
   },
-  saveCustomer(customer: Customer): Customer[] {
-    const list = this.getCustomers();
+  saveCustomer(customer: Customer, userId?: string): Customer[] {
+    const key = getScopedKey(BASE_KEYS.CUSTOMERS, userId);
+    const list = getItem<Customer[]>(key, []);
     const index = list.findIndex((c) => c.id === customer.id);
     if (index >= 0) {
       list[index] = customer;
     } else {
       list.unshift(customer);
     }
-    setItem(KEYS.CUSTOMERS, list);
-    this.addAuditLog(`Saved Customer: ${customer.companyName}`, 'Customers CRM');
+    setItem(key, list);
+    this.addAuditLog(`Saved Customer: ${customer.companyName}`, 'Customers CRM', userId);
     return list;
   },
 
   // Products & Rate Card
-  getProducts(): Product[] {
-    return getItem(KEYS.PRODUCTS, []);
+  getProducts(userId?: string): Product[] {
+    return getItem(getScopedKey(BASE_KEYS.PRODUCTS, userId), []);
   },
-  saveProduct(product: Product): Product[] {
-    const list = this.getProducts();
+  saveProduct(product: Product, userId?: string): Product[] {
+    const key = getScopedKey(BASE_KEYS.PRODUCTS, userId);
+    const list = getItem<Product[]>(key, []);
     const index = list.findIndex((p) => p.id === product.id);
     if (index >= 0) {
       list[index] = product;
     } else {
       list.unshift(product);
     }
-    setItem(KEYS.PRODUCTS, list);
-    this.addAuditLog(`Saved Product: ${product.name}`, 'Product Catalog');
+    setItem(key, list);
+    this.addAuditLog(`Saved Product: ${product.name}`, 'Product Catalog', userId);
     return list;
   },
 
   // Proposal Templates
-  getTemplates(): ProposalTemplate[] {
-    return getItem(KEYS.TEMPLATES, []);
+  getTemplates(userId?: string): ProposalTemplate[] {
+    return getItem(getScopedKey(BASE_KEYS.TEMPLATES, userId), []);
   },
 
   // Follow Ups
-  getFollowUps(): FollowUp[] {
-    return getItem(KEYS.FOLLOW_UPS, []);
+  getFollowUps(userId?: string): FollowUp[] {
+    return getItem(getScopedKey(BASE_KEYS.FOLLOW_UPS, userId), []);
   },
-  saveFollowUp(followUp: FollowUp): FollowUp[] {
-    const list = this.getFollowUps();
+  saveFollowUp(followUp: FollowUp, userId?: string): FollowUp[] {
+    const key = getScopedKey(BASE_KEYS.FOLLOW_UPS, userId);
+    const list = getItem<FollowUp[]>(key, []);
     const index = list.findIndex((f) => f.id === followUp.id);
     if (index >= 0) {
       list[index] = followUp;
     } else {
       list.unshift(followUp);
     }
-    setItem(KEYS.FOLLOW_UPS, list);
-    this.addAuditLog(`Scheduled Follow-up for ${followUp.companyName}`, 'Calendar & Follow-ups');
+    setItem(key, list);
+    this.addAuditLog(`Scheduled Follow-up for ${followUp.companyName}`, 'Calendar & Follow-ups', userId);
     return list;
   },
-  deleteFollowUp(id: string): FollowUp[] {
-    const list = this.getFollowUps();
+  deleteFollowUp(id: string, userId?: string): FollowUp[] {
+    const key = getScopedKey(BASE_KEYS.FOLLOW_UPS, userId);
+    const list = getItem<FollowUp[]>(key, []);
     const updated = list.filter((f) => f.id !== id);
-    setItem(KEYS.FOLLOW_UPS, updated);
+    setItem(key, updated);
     return updated;
   },
 
   // Email Logs
-  getEmailLogs(): EmailLog[] {
-    return getItem(KEYS.EMAIL_LOGS, []);
+  getEmailLogs(userId?: string): EmailLog[] {
+    return getItem(getScopedKey(BASE_KEYS.EMAIL_LOGS, userId), []);
   },
-  addEmailLog(log: EmailLog): EmailLog[] {
-    const list = this.getEmailLogs();
+  addEmailLog(log: EmailLog, userId?: string): EmailLog[] {
+    const key = getScopedKey(BASE_KEYS.EMAIL_LOGS, userId);
+    const list = getItem<EmailLog[]>(key, []);
     list.unshift(log);
-    setItem(KEYS.EMAIL_LOGS, list);
-    this.addAuditLog(`Dispatched Email to ${log.customerEmail} for ${log.quotationNumber}`, 'Email Center');
+    setItem(key, list);
+    this.addAuditLog(`Dispatched Email to ${log.customerEmail} for ${log.quotationNumber}`, 'Email Center', userId);
     return list;
   },
 
   // WhatsApp Logs
-  getWhatsAppLogs(): WhatsAppLog[] {
-    return getItem(KEYS.WHATSAPP_LOGS, []);
+  getWhatsAppLogs(userId?: string): WhatsAppLog[] {
+    return getItem(getScopedKey(BASE_KEYS.WHATSAPP_LOGS, userId), []);
   },
-  addWhatsAppLog(log: WhatsAppLog): WhatsAppLog[] {
-    const list = this.getWhatsAppLogs();
+  addWhatsAppLog(log: WhatsAppLog, userId?: string): WhatsAppLog[] {
+    const key = getScopedKey(BASE_KEYS.WHATSAPP_LOGS, userId);
+    const list = getItem<WhatsAppLog[]>(key, []);
     list.unshift(log);
-    setItem(KEYS.WHATSAPP_LOGS, list);
-    this.addAuditLog(`Sent WhatsApp message to ${log.customerMobile} for ${log.quotationNumber}`, 'WhatsApp Center');
+    setItem(key, list);
+    this.addAuditLog(`Sent WhatsApp message to ${log.customerMobile} for ${log.quotationNumber}`, 'WhatsApp Center', userId);
     return list;
   },
 
   // Team Members
-  getTeamMembers(): TeamMember[] {
-    return getItem(KEYS.TEAM_MEMBERS, []);
+  getTeamMembers(userId?: string): TeamMember[] {
+    return getItem(getScopedKey(BASE_KEYS.TEAM_MEMBERS, userId), []);
   },
-  saveTeamMember(member: TeamMember): TeamMember[] {
-    const list = this.getTeamMembers();
+  saveTeamMember(member: TeamMember, userId?: string): TeamMember[] {
+    const key = getScopedKey(BASE_KEYS.TEAM_MEMBERS, userId);
+    const list = getItem<TeamMember[]>(key, []);
     const index = list.findIndex((m) => m.id === member.id);
     if (index >= 0) {
       list[index] = member;
     } else {
       list.unshift(member);
     }
-    setItem(KEYS.TEAM_MEMBERS, list);
-    this.addAuditLog(`Updated Team Member Role: ${member.name} (${member.role})`, 'Team Members');
+    setItem(key, list);
+    this.addAuditLog(`Updated Team Member Role: ${member.name} (${member.role})`, 'Team Members', userId);
     return list;
   },
 
   // Company Settings
-  getCompanySettings(): CompanySettings {
-    const s = getItem(KEYS.SETTINGS, initialCompanySettings);
+  getCompanySettings(userId?: string): CompanySettings {
+    const key = getScopedKey(BASE_KEYS.SETTINGS, userId);
+    const s = getItem(key, initialCompanySettings);
     if (!s.logoUrl || s.logoUrl.includes('unsplash')) {
       s.logoUrl = '/zipcon_logo.png';
-      setItem(KEYS.SETTINGS, s);
+      setItem(key, s);
     }
     return s;
   },
-  saveCompanySettings(settings: CompanySettings): CompanySettings {
-    setItem(KEYS.SETTINGS, settings);
-    this.addAuditLog(`Updated Company Settings & Bank Credentials`, 'Settings');
+  saveCompanySettings(settings: CompanySettings, userId?: string): CompanySettings {
+    const key = getScopedKey(BASE_KEYS.SETTINGS, userId);
+    setItem(key, settings);
+    this.addAuditLog(`Updated Company Settings & Bank Credentials`, 'Settings', userId);
     return settings;
   },
 
-  resetAllData(): void {
-    localStorage.removeItem(KEYS.QUOTATIONS);
-    localStorage.removeItem(KEYS.INVOICES);
-    localStorage.removeItem(KEYS.CUSTOMERS);
-    localStorage.removeItem(KEYS.PRODUCTS);
-    localStorage.removeItem(KEYS.TEMPLATES);
-    localStorage.removeItem(KEYS.FOLLOW_UPS);
-    localStorage.removeItem(KEYS.EMAIL_LOGS);
-    localStorage.removeItem(KEYS.WHATSAPP_LOGS);
-    localStorage.removeItem(KEYS.TEAM_MEMBERS);
-    localStorage.removeItem(KEYS.SETTINGS);
-    localStorage.removeItem(KEYS.AUDIT_LOGS);
-    localStorage.removeItem(KEYS.EVENTS);
-    localStorage.setItem(KEYS.CLEAN_FLAG, 'true');
+  resetAllData(userId?: string): void {
+    const keys = Object.values(BASE_KEYS).map((k) => getScopedKey(k, userId));
+    keys.forEach((k) => localStorage.removeItem(k));
   },
 };

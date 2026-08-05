@@ -52,7 +52,7 @@ export function App() {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Domain States loaded from StorageService
+  // Domain States loaded from StorageService — User-Isolated
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [invoices, setInvoices] = useState<MonthlyInvoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -62,7 +62,7 @@ export function App() {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [settings, setSettings] = useState<CompanySettings>(StorageService.getCompanySettings());
+  const [settings, setSettings] = useState<CompanySettings>(StorageService.getCompanySettings(user?.uid));
 
   // Modal / Selection states
   const [previewQuotation, setPreviewQuotation] = useState<Quotation | null>(null);
@@ -71,23 +71,26 @@ export function App() {
   const [selectedQuotationForEmail, setSelectedQuotationForEmail] = useState<Quotation | null>(null);
   const [showAutoUpdateModal, setShowAutoUpdateModal] = useState(false);
 
-  // Sync state helper to reflect cross-module updates instantly
-  const refreshAllState = () => {
-    setQuotations(StorageService.getQuotations());
-    setInvoices(StorageService.getInvoices());
-    setCustomers(StorageService.getCustomers());
-    setProducts(StorageService.getProducts());
-    setTemplates(StorageService.getTemplates());
-    setFollowUps(StorageService.getFollowUps());
-    setEmailLogs(StorageService.getEmailLogs());
-    setTeamMembers(StorageService.getTeamMembers());
-    setAuditLogs(StorageService.getAuditLogs());
-    setSettings(StorageService.getCompanySettings());
+  // Refresh data strictly isolated to the authenticated user.uid
+  const refreshAllState = (uid?: string) => {
+    const targetUid = uid || user?.uid;
+    setQuotations(StorageService.getQuotations(targetUid));
+    setInvoices(StorageService.getInvoices(targetUid));
+    setCustomers(StorageService.getCustomers(targetUid));
+    setProducts(StorageService.getProducts(targetUid));
+    setTemplates(StorageService.getTemplates(targetUid));
+    setFollowUps(StorageService.getFollowUps(targetUid));
+    setEmailLogs(StorageService.getEmailLogs(targetUid));
+    setTeamMembers(StorageService.getTeamMembers(targetUid));
+    setAuditLogs(StorageService.getAuditLogs(targetUid));
+    setSettings(StorageService.getCompanySettings(targetUid));
   };
 
   useEffect(() => {
-    refreshAllState();
+    refreshAllState(user?.uid);
+  }, [user?.uid]);
 
+  useEffect(() => {
     // Electron IPC Event Handlers
     if (window.electronAPI) {
       window.electronAPI.onNavigateTab((tab: string) => {
@@ -136,17 +139,17 @@ export function App() {
   if (!user) return <LoginScreen />;
   // ───────────────────────────────────────────────────────────────────────
 
-  // ── ZERO TRUST DATA SCOPING (Scoped per user role & ownership) ──────────
+  // ── ZERO TRUST & USER ISOLATION SCOPING ──────────────────────────────
   const userRole = getUserRole(user);
   const authorizedQuotations = ZeroTrust.scopeQuotations(user, quotations);
   const authorizedInvoices   = ZeroTrust.scopeInvoices(user, invoices);
   const authorizedFollowUps  = ZeroTrust.scopeFollowUps(user, followUps);
 
-  // Handlers with automatic cross-module synchronization & Zero Trust Audit Logging
+  // Handlers with User-Scoped Storage Isolation & Audit Logging
   const handleSaveQuotation = (quotation: Quotation) => {
-    StorageService.saveQuotation(quotation);
-    SyncService.enqueueOfflineAction(`Save Quotation by ${user.displayName}`);
-    refreshAllState();
+    StorageService.saveQuotation(quotation, user.uid);
+    SyncService.enqueueOfflineAction(`Save Quotation by ${user.displayName || user.email}`);
+    refreshAllState(user.uid);
     setEditingQuotation(null);
     setCurrentTab('quotations');
   };
@@ -156,50 +159,50 @@ export function App() {
       alert('Zero Trust Security Violation: Only System Admins can delete quotations.');
       return;
     }
-    StorageService.deleteQuotation(id);
+    StorageService.deleteQuotation(id, user.uid);
     SyncService.enqueueOfflineAction('Delete Quotation');
-    refreshAllState();
+    refreshAllState(user.uid);
   };
 
   const handleUpdateStatus = (id: string, status: QuotationStatus) => {
-    StorageService.updateQuotationStatus(id, status);
+    StorageService.updateQuotationStatus(id, status, user.uid);
     SyncService.enqueueOfflineAction('Update Status');
-    refreshAllState();
+    refreshAllState(user.uid);
   };
 
   const handleSaveInvoice = (invoice: MonthlyInvoice) => {
-    StorageService.saveInvoice(invoice);
+    StorageService.saveInvoice(invoice, user.uid);
     SyncService.enqueueOfflineAction('Save Invoice');
-    refreshAllState();
+    refreshAllState(user.uid);
     setCurrentTab('monthly-billing');
   };
 
   const handleRecordPayment = (invoiceId: string, payment: Omit<PaymentRecord, 'id'>) => {
-    StorageService.recordPayment(invoiceId, payment);
+    StorageService.recordPayment(invoiceId, payment, user.uid);
     SyncService.enqueueOfflineAction('Record Payment');
-    refreshAllState();
+    refreshAllState(user.uid);
   };
 
   const handleSaveCustomer = (customer: Customer) => {
-    StorageService.saveCustomer(customer);
+    StorageService.saveCustomer(customer, user.uid);
     SyncService.enqueueOfflineAction('Save Customer');
-    refreshAllState();
+    refreshAllState(user.uid);
   };
 
   const handleSaveProduct = (product: Product) => {
-    StorageService.saveProduct(product);
+    StorageService.saveProduct(product, user.uid);
     SyncService.enqueueOfflineAction('Save Product');
-    refreshAllState();
+    refreshAllState(user.uid);
   };
 
   const handleSaveFollowUp = (followUp: FollowUp) => {
-    StorageService.saveFollowUp(followUp);
-    refreshAllState();
+    StorageService.saveFollowUp(followUp, user.uid);
+    refreshAllState(user.uid);
   };
 
   const handleDeleteFollowUp = (id: string) => {
-    StorageService.deleteFollowUp(id);
-    refreshAllState();
+    StorageService.deleteFollowUp(id, user.uid);
+    refreshAllState(user.uid);
   };
 
   const handleSaveTeamMember = (member: TeamMember) => {
@@ -207,8 +210,8 @@ export function App() {
       alert('Zero Trust Security Violation: Access denied.');
       return;
     }
-    StorageService.saveTeamMember(member);
-    refreshAllState();
+    StorageService.saveTeamMember(member, user.uid);
+    refreshAllState(user.uid);
   };
 
   const handleSaveSettings = (newSettings: CompanySettings) => {
@@ -216,8 +219,8 @@ export function App() {
       alert('Zero Trust Security Violation: Only System Admins can alter company settings.');
       return;
     }
-    StorageService.saveCompanySettings(newSettings);
-    refreshAllState();
+    StorageService.saveCompanySettings(newSettings, user.uid);
+    refreshAllState(user.uid);
   };
 
   const handleResetData = () => {
@@ -225,9 +228,9 @@ export function App() {
       alert('Zero Trust Security Violation: Only System Admins can reset database.');
       return;
     }
-    if (window.confirm('Are you sure you want to reset all data to default demo state?')) {
-      StorageService.resetAllData();
-      refreshAllState();
+    if (window.confirm('Are you sure you want to reset all your data?')) {
+      StorageService.resetAllData(user.uid);
+      refreshAllState(user.uid);
     }
   };
 
@@ -242,8 +245,8 @@ export function App() {
   };
 
   const handleSendEmailSubmit = (log: EmailLog) => {
-    StorageService.addEmailLog(log);
-    refreshAllState();
+    StorageService.addEmailLog(log, user.uid);
+    refreshAllState(user.uid);
   };
 
   const handleUseTemplate = (template: ProposalTemplate) => {

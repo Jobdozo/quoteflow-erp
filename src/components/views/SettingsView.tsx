@@ -1,0 +1,288 @@
+import React, { useState } from 'react';
+import { Save, RefreshCw, Building, CreditCard, ShieldCheck, FileText, Plus, Trash2 } from 'lucide-react';
+import type { CompanySettings } from '../../types';
+import { zipconDefaultTerms } from '../../data/mockData';
+
+interface SettingsViewProps {
+  settings: CompanySettings;
+  onSaveSettings: (settings: CompanySettings) => void;
+  onResetData: () => void;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  settings,
+  onSaveSettings,
+  onResetData,
+}) => {
+  const [formData, setFormData] = useState<CompanySettings>(settings);
+  const [newTerm, setNewTerm] = useState('');
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const handleChange = (field: keyof CompanySettings, value: any) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const handleUpdateTerm = (index: number, value: string) => {
+    const updated = [...formData.defaultTerms];
+    updated[index] = value;
+    setFormData({ ...formData, defaultTerms: updated });
+  };
+
+  const handleRemoveTerm = (index: number) => {
+    const updated = formData.defaultTerms.filter((_, i) => i !== index);
+    setFormData({ ...formData, defaultTerms: updated });
+  };
+
+  const handleAddTerm = () => {
+    if (!newTerm.trim()) return;
+    setFormData({ ...formData, defaultTerms: [...formData.defaultTerms, newTerm.trim()] });
+    setNewTerm('');
+  };
+
+  const handleResetTermsToZipcon = () => {
+    setFormData({ ...formData, defaultTerms: zipconDefaultTerms });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSaveSettings(formData);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  return (
+    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Company Settings & Terms Manager</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Manage your company legal profile, tax registration, bank transfer details, and default Terms & Conditions.
+          </p>
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 flex items-center space-x-1.5"
+        >
+          <Save className="w-4 h-4" />
+          <span>Save Settings</span>
+        </button>
+      </div>
+
+      {savedSuccess && (
+        <div className="p-4 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-2xl border border-emerald-200">
+          ✓ Company settings and default Terms & Conditions saved successfully!
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Company Identity */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2 flex items-center space-x-2">
+            <Building className="w-4 h-4 text-indigo-600" />
+            <span>Company Identity & Legal Details</span>
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Company Name</label>
+              <input
+                type="text"
+                value={formData.companyName}
+                onChange={(e) => handleChange('companyName', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Tagline</label>
+              <input
+                type="text"
+                value={formData.tagline}
+                onChange={(e) => handleChange('tagline', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">GSTIN Number</label>
+              <input
+                type="text"
+                value={formData.gstNumber}
+                onChange={(e) => handleChange('gstNumber', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-indigo-600 font-mono font-bold outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleChange('email', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Tollfree / Phone</label>
+              <input
+                type="text"
+                value={formData.phone}
+                onChange={(e) => handleChange('phone', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Website</label>
+              <input
+                type="text"
+                value={formData.website}
+                onChange={(e) => handleChange('website', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block font-bold text-slate-700 mb-1">Registered Address</label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => handleChange('address', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Bank Credentials */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2 flex items-center space-x-2">
+            <CreditCard className="w-4 h-4 text-emerald-600" />
+            <span>Bank Account Details (Printed on Invoices & PDFs)</span>
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Bank Name</label>
+              <input
+                type="text"
+                value={formData.bankName}
+                onChange={(e) => handleChange('bankName', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Account Number</label>
+              <input
+                type="text"
+                value={formData.accountNumber}
+                onChange={(e) => handleChange('accountNumber', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-mono font-bold text-slate-900 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">IFSC Code</label>
+              <input
+                type="text"
+                value={formData.ifscCode}
+                onChange={(e) => handleChange('ifscCode', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-mono font-bold text-slate-900 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Branch Name</label>
+              <input
+                type="text"
+                value={formData.branchName}
+                onChange={(e) => handleChange('branchName', e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* DEFAULT TERMS & CONDITIONS MANAGER */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2">
+              <FileText className="w-4 h-4 text-indigo-600" />
+              <span>Default Company Terms & Conditions ({formData.defaultTerms.length} Rules)</span>
+            </h3>
+
+            <button
+              type="button"
+              onClick={handleResetTermsToZipcon}
+              className="text-xs text-indigo-600 hover:underline font-bold"
+            >
+              Reset to Original ZIPCON Terms
+            </button>
+          </div>
+
+          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+            {formData.defaultTerms.map((term, idx) => (
+              <div key={idx} className="flex items-start space-x-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <span className="text-xs font-bold text-indigo-600 w-6 shrink-0 pt-1">
+                  #{idx + 1}
+                </span>
+                <textarea
+                  value={term}
+                  onChange={(e) => handleUpdateTerm(idx, e.target.value)}
+                  rows={2}
+                  className="flex-1 bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-800 font-medium outline-none focus:border-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveTerm(idx)}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg pt-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center space-x-2 pt-2 border-t border-slate-100">
+            <input
+              type="text"
+              value={newTerm}
+              onChange={(e) => setNewTerm(e.target.value)}
+              placeholder="Add new default company term..."
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none"
+            />
+            <button
+              type="button"
+              onClick={handleAddTerm}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl"
+            >
+              + Add Rule
+            </button>
+          </div>
+        </div>
+
+        {/* Demo Reset */}
+        <div className="p-6 bg-rose-50 rounded-2xl border border-rose-200 flex items-center justify-between">
+          <div>
+            <h4 className="font-bold text-rose-900 text-sm">Reset All Demo Data</h4>
+            <p className="text-xs text-rose-600 mt-0.5">
+              Reset LocalStorage to original factory demo data (Quotations, Invoices, Customers, Products).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onResetData}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center space-x-1.5"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Reset Demo Data</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};

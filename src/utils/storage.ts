@@ -13,6 +13,7 @@ import {
   PaymentRecord,
   AuditLog,
   CalendarEvent,
+  Integration,
 } from '../types';
 import { initialCompanySettings } from '../data/mockData';
 
@@ -29,6 +30,7 @@ const BASE_KEYS = {
   SETTINGS: 'quoteflow_settings',
   AUDIT_LOGS: 'quoteflow_audit_logs',
   EVENTS: 'quoteflow_events',
+  INTEGRATIONS: 'quoteflow_integrations',
   CLEAN_FLAG: 'quoteflow_seeded_data_purged_v3',
 };
 
@@ -73,6 +75,19 @@ function setItem<T>(key: string, value: T): void {
 }
 
 export const StorageService = {
+  // Enterprise Integrations
+  getIntegrations(userId?: string): Record<string, any> {
+    return getItem(getScopedKey(BASE_KEYS.INTEGRATIONS, userId), {});
+  },
+  saveIntegration(id: string, config: any, userId?: string): Record<string, any> {
+    const key = getScopedKey(BASE_KEYS.INTEGRATIONS, userId);
+    const current = getItem<Record<string, any>>(key, {});
+    current[id] = config;
+    setItem(key, current);
+    this.addAuditLog(`Updated Integration Config for ${id}`, 'Integrations Hub', userId);
+    return current;
+  },
+
   // Calendar Events
   getEvents(userId?: string): CalendarEvent[] {
     return getItem(getScopedKey(BASE_KEYS.EVENTS, userId), []);

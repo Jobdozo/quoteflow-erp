@@ -14,16 +14,7 @@ import {
   AuditLog,
   CalendarEvent,
 } from '../types';
-import {
-  initialQuotations,
-  initialCustomers,
-  initialProducts,
-  initialTemplates,
-  initialFollowUps,
-  initialTeamMembers,
-  initialCompanySettings,
-  initialInvoices,
-} from '../data/mockData';
+import { initialCompanySettings } from '../data/mockData';
 
 const KEYS = {
   QUOTATIONS: 'quoteflow_quotations',
@@ -38,7 +29,26 @@ const KEYS = {
   SETTINGS: 'quoteflow_settings',
   AUDIT_LOGS: 'quoteflow_audit_logs',
   EVENTS: 'quoteflow_events',
+  CLEAN_FLAG: 'quoteflow_seeded_data_purged_v1',
 };
+
+// Auto purge legacy seeded mock data once on boot
+if (typeof window !== 'undefined') {
+  try {
+    if (!localStorage.getItem(KEYS.CLEAN_FLAG)) {
+      localStorage.removeItem(KEYS.QUOTATIONS);
+      localStorage.removeItem(KEYS.INVOICES);
+      localStorage.removeItem(KEYS.CUSTOMERS);
+      localStorage.removeItem(KEYS.PRODUCTS);
+      localStorage.removeItem(KEYS.FOLLOW_UPS);
+      localStorage.removeItem(KEYS.TEAM_MEMBERS);
+      localStorage.removeItem(KEYS.AUDIT_LOGS);
+      localStorage.setItem(KEYS.CLEAN_FLAG, 'true');
+    }
+  } catch (e) {
+    console.warn('Storage purge error:', e);
+  }
+}
 
 function getItem<T>(key: string, defaultValue: T): T {
   try {
@@ -61,30 +71,13 @@ function setItem<T>(key: string, value: T): void {
 export const StorageService = {
   // Audit Logs
   getAuditLogs(): AuditLog[] {
-    return getItem(KEYS.AUDIT_LOGS, [
-      {
-        id: 'log-1',
-        user: 'Ankit Sharma (Admin)',
-        action: 'Generated Tax Invoice INV-2026-0501',
-        module: 'Monthly Billing',
-        timestamp: '2026-05-18 10:14:22',
-        ipAddress: '192.168.1.45',
-      },
-      {
-        id: 'log-2',
-        user: 'Rahul Verma (Sales Mgr)',
-        action: 'Updated Quotation Q-2026-124 to Status: Viewed',
-        module: 'Quotations CRM',
-        timestamp: '2026-05-18 09:30:10',
-        ipAddress: '192.168.1.88',
-      },
-    ]);
+    return getItem(KEYS.AUDIT_LOGS, []);
   },
   addAuditLog(action: string, module: string): AuditLog[] {
     const logs = this.getAuditLogs();
     const newLog: AuditLog = {
       id: `log-${Date.now()}`,
-      user: 'Ankit Sharma (Admin)',
+      user: 'User',
       action,
       module,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -95,14 +88,13 @@ export const StorageService = {
     return logs;
   },
 
-  // Quotations with Full Cross-Module Auto Sync
+  // Quotations
   getQuotations(): Quotation[] {
-    return getItem(KEYS.QUOTATIONS, initialQuotations);
+    return getItem(KEYS.QUOTATIONS, []);
   },
   saveQuotation(quotation: Quotation): Quotation[] {
     const list = this.getQuotations();
     const existingIndex = list.findIndex((q) => q.id === quotation.id);
-    const isNew = existingIndex < 0;
 
     if (existingIndex >= 0) {
       list[existingIndex] = { ...quotation, updatedAt: new Date().toISOString() };
@@ -110,103 +102,22 @@ export const StorageService = {
       list.unshift(quotation);
     }
     setItem(KEYS.QUOTATIONS, list);
-
     this.addAuditLog(
-      `${isNew ? 'Created' : 'Updated'} Quotation ${quotation.quotationNumber} for ${quotation.companyName} (₹${quotation.grandTotal.toLocaleString('en-IN')})`,
-      'Quotations'
+      `${existingIndex >= 0 ? 'Updated' : 'Created'} Quotation ${quotation.quotationNumber} (${quotation.companyName})`,
+      'Quotations CRM'
     );
-
-    const customers = this.getCustomers();
-    const custExists = customers.some((c) => c.companyName.toLowerCase() === quotation.companyName.toLowerCase());
-    if (!custExists && quotation.companyName) {
-      this.saveCustomer({
-        id: quotation.customerId || `cust-${Date.now()}`,
-        name: quotation.customerName,
-        companyName: quotation.companyName,
-        gstNumber: quotation.customerGst || '',
-        email: quotation.customerEmail,
-        mobile: quotation.customerMobile,
-        contactPerson: quotation.customerName,
-        address: quotation.customerAddress || '',
-        notes: `Auto-created from Quotation ${quotation.quotationNumber}`,
-        createdAt: new Date().toISOString().split('T')[0],
-      });
-    }
-
-    if (quotation.status === 'Approved') {
-      const invoices = this.getInvoices();
-      const invoiceExists = invoices.some((inv) => inv.quotationNumber === quotation.quotationNumber);
-      if (!invoiceExists) {
-        const taxable = quotation.subtotal - quotation.totalDiscount;
-        const cgst = taxable * 0.09;
-        const sgst = taxable * 0.09;
-        const issueDate = new Date().toISOString().split('T')[0];
-        const dueDateObj = new Date();
-        dueDateObj.setDate(dueDateObj.getDate() + 15);
-
-        this.saveInvoice({
-          id: `inv-${Date.now()}`,
-          invoiceNumber: `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-          quotationId: quotation.id,
-          quotationNumber: quotation.quotationNumber,
-          customerId: quotation.customerId,
-          customerName: quotation.customerName,
-          companyName: quotation.companyName,
-          customerGst: quotation.customerGst || 'N/A',
-          customerAddress: quotation.customerAddress || quotation.companyName,
-          billingMonth: 'Current Month',
-          issueDate,
-          dueDate: dueDateObj.toISOString().split('T')[0],
-          items: quotation.items,
-          subtotal: quotation.subtotal,
-          totalDiscount: quotation.totalDiscount,
-          taxableAmount: taxable,
-          cgstAmount: Math.round(cgst),
-          sgstAmount: Math.round(sgst),
-          igstAmount: 0,
-          totalGst: quotation.totalGst,
-          totalAmount: quotation.grandTotal,
-          paidAmount: 0,
-          balanceDue: quotation.grandTotal,
-          status: 'Sent',
-          payments: [],
-          createdAt: new Date().toISOString(),
-        });
-      }
-    }
-
-    if (isNew) {
-      const followUps = this.getFollowUps();
-      const fuExists = followUps.some((f) => f.quotationNumber === quotation.quotationNumber);
-      if (!fuExists) {
-        const schedDate = new Date();
-        schedDate.setDate(schedDate.getDate() + 2);
-        this.saveFollowUp({
-          id: `fu-${Date.now()}`,
-          quotationId: quotation.id,
-          quotationNumber: quotation.quotationNumber,
-          customerName: quotation.customerName,
-          companyName: quotation.companyName,
-          scheduledDate: schedDate.toISOString().split('T')[0],
-          type: 'Call',
-          status: 'Pending',
-          reminderStage: '2 Days',
-          notes: `Follow up on proposal feedback for ${quotation.companyName}`,
-          amount: quotation.grandTotal,
-        });
-      }
-    }
-
     return list;
   },
-
   deleteQuotation(id: string): Quotation[] {
-    const list = this.getQuotations().filter((q) => q.id !== id);
-    setItem(KEYS.QUOTATIONS, list);
-    this.addAuditLog(`Deleted Quotation ID ${id}`, 'Quotations');
-    return list;
+    const list = this.getQuotations();
+    const q = list.find((item) => item.id === id);
+    const updated = list.filter((item) => item.id !== id);
+    setItem(KEYS.QUOTATIONS, updated);
+    if (q) {
+      this.addAuditLog(`Deleted Quotation ${q.quotationNumber}`, 'Quotations CRM');
+    }
+    return updated;
   },
-
   updateQuotationStatus(id: string, status: QuotationStatus): Quotation[] {
     const list = this.getQuotations();
     const q = list.find((item) => item.id === id);
@@ -214,56 +125,14 @@ export const StorageService = {
       q.status = status;
       q.updatedAt = new Date().toISOString();
       setItem(KEYS.QUOTATIONS, list);
-      this.addAuditLog(`Updated Quotation ${q.quotationNumber} status to ${status}`, 'Pipeline / Quotations');
-
-      if (status === 'Approved') {
-        const invoices = this.getInvoices();
-        const invoiceExists = invoices.some((inv) => inv.quotationNumber === q.quotationNumber);
-        if (!invoiceExists) {
-          const taxable = q.subtotal - q.totalDiscount;
-          const cgst = taxable * 0.09;
-          const sgst = taxable * 0.09;
-          const issueDate = new Date().toISOString().split('T')[0];
-          const dueDateObj = new Date();
-          dueDateObj.setDate(dueDateObj.getDate() + 15);
-
-          this.saveInvoice({
-            id: `inv-${Date.now()}`,
-            invoiceNumber: `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-            quotationId: q.id,
-            quotationNumber: q.quotationNumber,
-            customerId: q.customerId,
-            customerName: q.customerName,
-            companyName: q.companyName,
-            customerGst: q.customerGst || 'N/A',
-            customerAddress: q.customerAddress || q.companyName,
-            billingMonth: 'Current Month',
-            issueDate,
-            dueDate: dueDateObj.toISOString().split('T')[0],
-            items: q.items,
-            subtotal: q.subtotal,
-            totalDiscount: q.totalDiscount,
-            taxableAmount: taxable,
-            cgstAmount: Math.round(cgst),
-            sgstAmount: Math.round(sgst),
-            igstAmount: 0,
-            totalGst: q.totalGst,
-            totalAmount: q.grandTotal,
-            paidAmount: 0,
-            balanceDue: q.grandTotal,
-            status: 'Sent',
-            payments: [],
-            createdAt: new Date().toISOString(),
-          });
-        }
-      }
+      this.addAuditLog(`Updated Status for ${q.quotationNumber} -> ${status}`, 'Quotations CRM');
     }
     return list;
   },
 
-  // Monthly Invoices
+  // Invoices & Monthly Billing
   getInvoices(): MonthlyInvoice[] {
-    return getItem(KEYS.INVOICES, initialInvoices);
+    return getItem(KEYS.INVOICES, []);
   },
   saveInvoice(invoice: MonthlyInvoice): MonthlyInvoice[] {
     const list = this.getInvoices();
@@ -274,38 +143,35 @@ export const StorageService = {
       list.unshift(invoice);
     }
     setItem(KEYS.INVOICES, list);
-    this.addAuditLog(`Saved Tax Invoice ${invoice.invoiceNumber} for ${invoice.companyName}`, 'Monthly Billing');
+    this.addAuditLog(`Generated Invoice ${invoice.invoiceNumber} for ${invoice.companyName}`, 'Monthly Billing');
     return list;
   },
-
   recordPayment(invoiceId: string, payment: Omit<PaymentRecord, 'id'>): MonthlyInvoice[] {
     const list = this.getInvoices();
-    const inv = list.find((i) => i.id === invoiceId);
-    if (inv) {
-      const newPay: PaymentRecord = {
-        id: `pay-${Date.now()}`,
+    const invoice = list.find((inv) => inv.id === invoiceId);
+    if (invoice) {
+      const newPayment: PaymentRecord = {
         ...payment,
+        id: `pay-${Date.now()}`,
       };
-      inv.payments.unshift(newPay);
-      inv.paidAmount += payment.amountPaid;
-      inv.balanceDue = Math.max(0, inv.totalAmount - inv.paidAmount);
-      if (inv.balanceDue === 0) {
-        inv.status = 'Paid';
-      } else if (inv.paidAmount > 0) {
-        inv.status = 'Partially Paid';
+      if (!invoice.payments) invoice.payments = [];
+      invoice.payments.push(newPayment);
+      invoice.paidAmount = invoice.payments.reduce((sum, p) => sum + p.amountPaid, 0);
+      invoice.balanceDue = invoice.totalAmount - invoice.paidAmount;
+      if (invoice.balanceDue <= 0) {
+        invoice.status = 'Paid';
+      } else if (invoice.paidAmount > 0) {
+        invoice.status = 'Partially Paid';
       }
       setItem(KEYS.INVOICES, list);
-      this.addAuditLog(
-        `Recorded payment of ₹${payment.amountPaid.toLocaleString('en-IN')} for Invoice ${inv.invoiceNumber} via ${payment.paymentMode}`,
-        'Monthly Billing & Dues'
-      );
+      this.addAuditLog(`Recorded ₹${payment.amountPaid} Payment for Invoice ${invoice.invoiceNumber}`, 'Monthly Billing');
     }
     return list;
   },
 
-  // Customers
+  // Customers (CRM)
   getCustomers(): Customer[] {
-    return getItem(KEYS.CUSTOMERS, initialCustomers);
+    return getItem(KEYS.CUSTOMERS, []);
   },
   saveCustomer(customer: Customer): Customer[] {
     const list = this.getCustomers();
@@ -316,13 +182,13 @@ export const StorageService = {
       list.unshift(customer);
     }
     setItem(KEYS.CUSTOMERS, list);
-    this.addAuditLog(`Saved Customer Profile: ${customer.companyName}`, 'Customers CRM');
+    this.addAuditLog(`Saved Customer: ${customer.companyName}`, 'Customers CRM');
     return list;
   },
 
-  // Products
+  // Products & Rate Card
   getProducts(): Product[] {
-    return getItem(KEYS.PRODUCTS, initialProducts);
+    return getItem(KEYS.PRODUCTS, []);
   },
   saveProduct(product: Product): Product[] {
     const list = this.getProducts();
@@ -333,29 +199,18 @@ export const StorageService = {
       list.unshift(product);
     }
     setItem(KEYS.PRODUCTS, list);
-    this.addAuditLog(`Saved Catalog Product: ${product.name}`, 'Products & Services');
+    this.addAuditLog(`Saved Product: ${product.name}`, 'Product Catalog');
     return list;
   },
 
-  // Templates
+  // Proposal Templates
   getTemplates(): ProposalTemplate[] {
-    return getItem(KEYS.TEMPLATES, initialTemplates);
-  },
-  saveTemplate(template: ProposalTemplate): ProposalTemplate[] {
-    const list = this.getTemplates();
-    const index = list.findIndex((t) => t.id === template.id);
-    if (index >= 0) {
-      list[index] = template;
-    } else {
-      list.unshift(template);
-    }
-    setItem(KEYS.TEMPLATES, list);
-    return list;
+    return getItem(KEYS.TEMPLATES, []);
   },
 
   // Follow Ups
   getFollowUps(): FollowUp[] {
-    return getItem(KEYS.FOLLOW_UPS, initialFollowUps);
+    return getItem(KEYS.FOLLOW_UPS, []);
   },
   saveFollowUp(followUp: FollowUp): FollowUp[] {
     const list = this.getFollowUps();
@@ -366,13 +221,14 @@ export const StorageService = {
       list.unshift(followUp);
     }
     setItem(KEYS.FOLLOW_UPS, list);
-    this.addAuditLog(`Updated Follow-up task for ${followUp.companyName}`, 'Follow-up CRM');
+    this.addAuditLog(`Scheduled Follow-up for ${followUp.companyName}`, 'Calendar & Follow-ups');
     return list;
   },
   deleteFollowUp(id: string): FollowUp[] {
-    const list = this.getFollowUps().filter((f) => f.id !== id);
-    setItem(KEYS.FOLLOW_UPS, list);
-    return list;
+    const list = this.getFollowUps();
+    const updated = list.filter((f) => f.id !== id);
+    setItem(KEYS.FOLLOW_UPS, updated);
+    return updated;
   },
 
   // Email Logs
@@ -401,7 +257,7 @@ export const StorageService = {
 
   // Team Members
   getTeamMembers(): TeamMember[] {
-    return getItem(KEYS.TEAM_MEMBERS, initialTeamMembers);
+    return getItem(KEYS.TEAM_MEMBERS, []);
   },
   saveTeamMember(member: TeamMember): TeamMember[] {
     const list = this.getTeamMembers();
@@ -419,7 +275,6 @@ export const StorageService = {
   // Company Settings
   getCompanySettings(): CompanySettings {
     const s = getItem(KEYS.SETTINGS, initialCompanySettings);
-    // Force update logoUrl if it contains unsplash or is outdated
     if (!s.logoUrl || s.logoUrl.includes('unsplash')) {
       s.logoUrl = '/zipcon_logo.png';
       setItem(KEYS.SETTINGS, s);
@@ -444,5 +299,6 @@ export const StorageService = {
     localStorage.removeItem(KEYS.TEAM_MEMBERS);
     localStorage.removeItem(KEYS.SETTINGS);
     localStorage.removeItem(KEYS.AUDIT_LOGS);
+    localStorage.setItem(KEYS.CLEAN_FLAG, 'true');
   },
 };

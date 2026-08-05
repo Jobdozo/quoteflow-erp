@@ -6,7 +6,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAnbAAWkGA740W2ZgDY-gwwy_9s_lTtav8",
@@ -18,14 +18,23 @@ const firebaseConfig = {
   measurementId: "G-KEPWJ8E33B"
 };
 
-// Initialize Firebase (guard against hot-reload duplicates)
+// Initialize Firebase safely
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const db        = getFirestore(app);
 export const auth      = getAuth(app);
 export const storage   = getStorage(app);
-export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 export const googleProvider = new GoogleAuthProvider();
+
+// Analytics initialized safely without blocking app load if restricted
+export let analytics: any = null;
+if (typeof window !== 'undefined') {
+  isSupported().then(supported => {
+    if (supported) {
+      analytics = getAnalytics(app);
+    }
+  }).catch(() => {});
+}
 
 // Default company document ID for ZIPCON Services
 export const COMPANY_ID = 'zipcon-services-jmu';

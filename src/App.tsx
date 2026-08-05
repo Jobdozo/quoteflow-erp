@@ -25,6 +25,8 @@ import { FloatingAiAssistant } from './components/ai/FloatingAiAssistant';
 import { AutoUpdateModal } from './components/common/AutoUpdateModal';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
+import { ZeroTrust, getUserRole } from './services/ZeroTrustService';
+import { ShieldAlert } from 'lucide-react';
 
 import { StorageService } from './utils/storage';
 import { SyncService } from './services/SyncService';
@@ -134,16 +136,26 @@ export function App() {
   if (!user) return <LoginScreen />;
   // ───────────────────────────────────────────────────────────────────────
 
-  // Handlers with automatic cross-module synchronization
+  // ── ZERO TRUST DATA SCOPING (Scoped per user role & ownership) ──────────
+  const userRole = getUserRole(user);
+  const authorizedQuotations = ZeroTrust.scopeQuotations(user, quotations);
+  const authorizedInvoices   = ZeroTrust.scopeInvoices(user, invoices);
+  const authorizedFollowUps  = ZeroTrust.scopeFollowUps(user, followUps);
+
+  // Handlers with automatic cross-module synchronization & Zero Trust Audit Logging
   const handleSaveQuotation = (quotation: Quotation) => {
     StorageService.saveQuotation(quotation);
-    SyncService.enqueueOfflineAction('Save Quotation');
+    SyncService.enqueueOfflineAction(`Save Quotation by ${user.displayName}`);
     refreshAllState();
     setEditingQuotation(null);
     setCurrentTab('quotations');
   };
 
   const handleDeleteQuotation = (id: string) => {
+    if (!ZeroTrust.canDeleteQuotation(user)) {
+      alert('Zero Trust Security Violation: Only System Admins can delete quotations.');
+      return;
+    }
     StorageService.deleteQuotation(id);
     SyncService.enqueueOfflineAction('Delete Quotation');
     refreshAllState();
@@ -191,16 +203,28 @@ export function App() {
   };
 
   const handleSaveTeamMember = (member: TeamMember) => {
+    if (!ZeroTrust.canManageTeam(user)) {
+      alert('Zero Trust Security Violation: Access denied.');
+      return;
+    }
     StorageService.saveTeamMember(member);
     refreshAllState();
   };
 
   const handleSaveSettings = (newSettings: CompanySettings) => {
+    if (!ZeroTrust.canManageSettings(user)) {
+      alert('Zero Trust Security Violation: Only System Admins can alter company settings.');
+      return;
+    }
     StorageService.saveCompanySettings(newSettings);
     refreshAllState();
   };
 
   const handleResetData = () => {
+    if (!ZeroTrust.canManageSettings(user)) {
+      alert('Zero Trust Security Violation: Only System Admins can reset database.');
+      return;
+    }
     if (window.confirm('Are you sure you want to reset all data to default demo state?')) {
       StorageService.resetAllData();
       refreshAllState();
@@ -247,7 +271,7 @@ export function App() {
       terms: template.defaultTerms,
       status: 'Draft',
       hasCompanyStamp: true,
-      createdBy: 'Ankit Sharma',
+      createdBy: user.displayName || user.email || 'Admin User',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -279,7 +303,7 @@ export function App() {
         setIsOpenMobile={setIsOpenMobile}
       />
 
-      {/* Main Content Area — FIX: Added lg:pl-64 so fixed Sidebar never overlaps main content */}
+      {/* Main Content Area */}
       <div className="flex-1 lg:pl-64 flex flex-col min-w-0 bg-slate-50 text-slate-900 overflow-x-hidden transition-all duration-300">
         {/* Top Header */}
         <Header
@@ -290,19 +314,19 @@ export function App() {
           }}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          quotations={quotations}
+          quotations={authorizedQuotations}
           customers={customers}
           products={products}
           onSelectQuotation={(q) => setPreviewQuotation(q)}
           onOpenAutoUpdate={() => setShowAutoUpdateModal(true)}
         />
 
-        {/* Dynamic View Router */}
+        {/* Dynamic View Router with Zero Trust Access Control */}
         <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto animate-in fade-in duration-200">
           {currentTab === 'dashboard' && (
             <DashboardView
-              quotations={quotations}
-              followUps={followUps}
+              quotations={authorizedQuotations}
+              followUps={authorizedFollowUps}
               onNavigate={(tab) => setCurrentTab(tab as NavTab)}
               onSelectQuotation={(q) => setPreviewQuotation(q)}
               onSendWhatsApp={handleLaunchWhatsApp}
@@ -329,7 +353,7 @@ export function App() {
 
           {currentTab === 'quotations' && (
             <QuotationsListView
-              quotations={quotations}
+              quotations={authorizedQuotations}
               onNewQuotation={() => {
                 setEditingQuotation(null);
                 setCurrentTab('new-quotation');
@@ -348,7 +372,7 @@ export function App() {
 
           {currentTab === 'pipeline' && (
             <PipelineKanbanView
-              quotations={quotations}
+              quotations={authorizedQuotations}
               onSelectQuotation={(q) => setPreviewQuotation(q)}
               onUpdateStatus={handleUpdateStatus}
               onNewQuotation={() => {
@@ -359,20 +383,24 @@ export function App() {
           )}
 
           {currentTab === 'monthly-billing' && (
-            <MonthlyBillingView
-              invoices={invoices}
-              quotations={quotations}
-              customers={customers}
-              onSaveInvoice={handleSaveInvoice}
-              onRecordPayment={handleRecordPayment}
-            />
+            ZeroTrust.canAccessBilling(user) ? (
+              <MonthlyBillingView
+                invoices={authorizedInvoices}
+                quotations={authorizedQuotations}
+                customers={customers}
+                onSaveInvoice={handleSaveInvoice}
+                onRecordPayment={handleRecordPayment}
+              />
+            ) : <ZeroTrustAccessDenied role={userRole} required="Accountant or Admin" />
           )}
 
           {currentTab === 'gst-accounting' && (
-            <GSTAccountingView
-              invoices={invoices}
-              settings={settings}
-            />
+            ZeroTrust.canAccessBilling(user) ? (
+              <GSTAccountingView
+                invoices={authorizedInvoices}
+                settings={settings}
+              />
+            ) : <ZeroTrustAccessDenied role={userRole} required="Accountant or Admin" />
           )}
 
           {currentTab === 'calendar' && (
@@ -411,7 +439,7 @@ export function App() {
 
           {currentTab === 'follow-ups' && (
             <FollowUpsView
-              followUps={followUps}
+              followUps={authorizedFollowUps}
               onSaveFollowUp={handleSaveFollowUp}
               onDeleteFollowUp={handleDeleteFollowUp}
             />
@@ -419,7 +447,7 @@ export function App() {
 
           {currentTab === 'whatsapp-center' && (
             <WhatsAppCenterView
-              quotations={quotations}
+              quotations={authorizedQuotations}
               settings={settings}
               selectedQuotationForWA={selectedQuotationForWA}
             />
@@ -427,7 +455,7 @@ export function App() {
 
           {currentTab === 'email-center' && (
             <EmailCenterView
-              quotations={quotations}
+              quotations={authorizedQuotations}
               settings={settings}
               emailLogs={emailLogs}
               onSendEmailSubmit={handleSendEmailSubmit}
@@ -436,14 +464,16 @@ export function App() {
           )}
 
           {currentTab === 'reports' && (
-            <ReportsView quotations={quotations} />
+            <ReportsView quotations={authorizedQuotations} />
           )}
 
           {currentTab === 'team' && (
-            <TeamView
-              teamMembers={teamMembers}
-              onSaveTeamMember={handleSaveTeamMember}
-            />
+            ZeroTrust.canManageTeam(user) ? (
+              <TeamView
+                teamMembers={teamMembers}
+                onSaveTeamMember={handleSaveTeamMember}
+              />
+            ) : <ZeroTrustAccessDenied role={userRole} required="Sales Manager or Admin" />
           )}
 
           {currentTab === 'integrations' && (
@@ -451,22 +481,26 @@ export function App() {
           )}
 
           {currentTab === 'security' && (
-            <SecurityAuditView auditLogs={auditLogs} />
+            ZeroTrust.canAccessAuditLogs(user) ? (
+              <SecurityAuditView auditLogs={auditLogs} />
+            ) : <ZeroTrustAccessDenied role={userRole} required="System Admin" />
           )}
 
           {currentTab === 'settings' && (
-            <SettingsView
-              settings={settings}
-              onSaveSettings={handleSaveSettings}
-              onResetData={handleResetData}
-            />
+            ZeroTrust.canManageSettings(user) ? (
+              <SettingsView
+                settings={settings}
+                onSaveSettings={handleSaveSettings}
+                onResetData={handleResetData}
+              />
+            ) : <ZeroTrustAccessDenied role={userRole} required="System Admin" />
           )}
         </main>
       </div>
 
       {/* Floating AI Assistant */}
       <FloatingAiAssistant
-        quotations={quotations}
+        quotations={authorizedQuotations}
         onOpenQuotationBuilder={() => {
           setEditingQuotation(null);
           setCurrentTab('new-quotation');
@@ -477,6 +511,24 @@ export function App() {
       {showAutoUpdateModal && (
         <AutoUpdateModal onClose={() => setShowAutoUpdateModal(false)} />
       )}
+    </div>
+  );
+}
+
+// ── Zero Trust Access Denied Screen Component ─────────────────────────────
+function ZeroTrustAccessDenied({ role, required }: { role: string; required: string }) {
+  return (
+    <div className="bg-white p-12 rounded-3xl border border-rose-200 text-center max-w-lg mx-auto my-12 shadow-xl animate-in zoom-in-95 duration-200">
+      <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 shadow-md">
+        <ShieldAlert className="w-8 h-8" />
+      </div>
+      <h2 className="text-xl font-bold text-slate-900">Zero Trust Access Denied</h2>
+      <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+        Your current account role <span className="font-bold text-rose-600">"{role}"</span> is not authorized to access this module. Requires clearance: <span className="font-bold text-slate-800">{required}</span>.
+      </p>
+      <div className="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400">
+        🔒 Security Event Logged · ZIPCON Services Zero Trust Architecture
+      </div>
     </div>
   );
 }

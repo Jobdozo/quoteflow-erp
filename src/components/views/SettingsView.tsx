@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Save, RefreshCw, Building, CreditCard, ShieldCheck, FileText, Plus, Trash2 } from 'lucide-react';
 import type { CompanySettings } from '../../types';
-import { zipconDefaultTerms } from '../../data/mockData';
 
 interface SettingsViewProps {
   settings: CompanySettings;
@@ -23,24 +22,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleUpdateTerm = (index: number, value: string) => {
-    const updated = [...formData.defaultTerms];
+    const updated = [...(formData.defaultTerms || [])];
     updated[index] = value;
     setFormData({ ...formData, defaultTerms: updated });
   };
 
   const handleRemoveTerm = (index: number) => {
-    const updated = formData.defaultTerms.filter((_, i) => i !== index);
+    const updated = (formData.defaultTerms || []).filter((_, i) => i !== index);
     setFormData({ ...formData, defaultTerms: updated });
   };
 
   const handleAddTerm = () => {
     if (!newTerm.trim()) return;
-    setFormData({ ...formData, defaultTerms: [...formData.defaultTerms, newTerm.trim()] });
+    setFormData({ ...formData, defaultTerms: [...(formData.defaultTerms || []), newTerm.trim()] });
     setNewTerm('');
   };
 
-  const handleResetTermsToZipcon = () => {
-    setFormData({ ...formData, defaultTerms: zipconDefaultTerms });
+  const handleClearTerms = () => {
+    setFormData({ ...formData, defaultTerms: [] });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -89,9 +88,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Company Name</label>
               <input
                 type="text"
+                placeholder="Enter your Company Name (e.g. Acme Corp Ltd.)"
                 value={formData.companyName}
                 onChange={(e) => handleChange('companyName', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
@@ -99,9 +99,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Tagline</label>
               <input
                 type="text"
+                placeholder="Company Slogan / Services Tagline"
                 value={formData.tagline}
                 onChange={(e) => handleChange('tagline', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
@@ -109,9 +110,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">GSTIN Number</label>
               <input
                 type="text"
+                placeholder="GSTIN Number (e.g. 07AAAAA0000A1Z5)"
                 value={formData.gstNumber}
                 onChange={(e) => handleChange('gstNumber', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-indigo-600 font-mono font-bold outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-indigo-700 font-bold outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
@@ -119,9 +121,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Email</label>
               <input
                 type="email"
+                placeholder="info@yourcompany.com"
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
@@ -129,9 +132,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Tollfree / Phone</label>
               <input
                 type="text"
+                placeholder="+91 9876543210"
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
@@ -139,28 +143,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Website</label>
               <input
                 type="text"
+                placeholder="www.yourcompany.com"
                 value={formData.website}
                 onChange={(e) => handleChange('website', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 md:col-span-3">
               <label className="block font-bold text-slate-700 mb-1">Registered Address</label>
               <input
                 type="text"
+                placeholder="Full Corporate Registered Address"
                 value={formData.address}
                 onChange={(e) => handleChange('address', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
           </div>
         </div>
 
-        {/* Bank Credentials */}
+        {/* Bank Account Details */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
           <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2 flex items-center space-x-2">
-            <CreditCard className="w-4 h-4 text-emerald-600" />
+            <CreditCard className="w-4 h-4 text-indigo-600" />
             <span>Bank Account Details (Printed on Invoices & PDFs)</span>
           </h3>
 
@@ -169,9 +175,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Bank Name</label>
               <input
                 type="text"
+                placeholder="e.g. HDFC Bank Ltd"
                 value={formData.bankName}
                 onChange={(e) => handleChange('bankName', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
@@ -179,9 +186,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Account Number</label>
               <input
                 type="text"
+                placeholder="Account Number"
                 value={formData.accountNumber}
                 onChange={(e) => handleChange('accountNumber', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-mono font-bold text-slate-900 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 font-bold outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
@@ -189,9 +197,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">IFSC Code</label>
               <input
                 type="text"
+                placeholder="e.g. HDFC0001234"
                 value={formData.ifscCode}
                 onChange={(e) => handleChange('ifscCode', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-mono font-bold text-slate-900 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-indigo-700 font-bold outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
 
@@ -199,9 +208,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="block font-bold text-slate-700 mb-1">Branch Name</label>
               <input
                 type="text"
+                placeholder="Branch Location"
                 value={formData.branchName}
                 onChange={(e) => handleChange('branchName', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
               />
             </div>
           </div>
@@ -212,20 +222,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2">
               <FileText className="w-4 h-4 text-indigo-600" />
-              <span>Default Company Terms & Conditions ({formData.defaultTerms.length} Rules)</span>
+              <span>Default Company Terms & Conditions ({(formData.defaultTerms || []).length} Rules)</span>
             </h3>
 
-            <button
-              type="button"
-              onClick={handleResetTermsToZipcon}
-              className="text-xs text-indigo-600 hover:underline font-bold"
-            >
-              Reset to Original ZIPCON Terms
-            </button>
+            {(formData.defaultTerms || []).length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearTerms}
+                className="text-xs text-rose-600 hover:underline font-bold"
+              >
+                Clear All Terms
+              </button>
+            )}
           </div>
 
           <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-            {formData.defaultTerms.map((term, idx) => (
+            {(formData.defaultTerms || []).map((term, idx) => (
               <div key={idx} className="flex items-start space-x-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                 <span className="text-xs font-bold text-indigo-600 w-6 shrink-0 pt-1">
                   #{idx + 1}
@@ -252,25 +264,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               type="text"
               value={newTerm}
               onChange={(e) => setNewTerm(e.target.value)}
-              placeholder="Add new default company term..."
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none"
+              placeholder="Add your custom contractual term or payment condition..."
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
             />
             <button
               type="button"
               onClick={handleAddTerm}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-md"
             >
               + Add Rule
             </button>
           </div>
         </div>
 
-        {/* Demo Reset */}
+        {/* Clear Data Reset */}
         <div className="p-6 bg-rose-50 rounded-2xl border border-rose-200 flex items-center justify-between">
           <div>
-            <h4 className="font-bold text-rose-900 text-sm">Reset All Demo Data</h4>
+            <h4 className="font-bold text-rose-900 text-sm">Clear Workspace Storage</h4>
             <p className="text-xs text-rose-600 mt-0.5">
-              Reset LocalStorage to original factory demo data (Quotations, Invoices, Customers, Products).
+              Permanently wipe all stored data for your account and start with a fresh workspace.
             </p>
           </div>
           <button
@@ -279,7 +291,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center space-x-1.5"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Reset Demo Data</span>
+            <span>Clear My Data</span>
           </button>
         </div>
       </form>

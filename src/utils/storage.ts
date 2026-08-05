@@ -29,7 +29,24 @@ const BASE_KEYS = {
   SETTINGS: 'quoteflow_settings',
   AUDIT_LOGS: 'quoteflow_audit_logs',
   EVENTS: 'quoteflow_events',
+  CLEAN_FLAG: 'quoteflow_seeded_data_purged_v3',
 };
+
+// Auto purge legacy seeded mock data once on boot
+if (typeof window !== 'undefined') {
+  try {
+    if (!localStorage.getItem(BASE_KEYS.CLEAN_FLAG)) {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('quoteflow_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      localStorage.setItem(BASE_KEYS.CLEAN_FLAG, 'true');
+    }
+  } catch (e) {
+    console.warn('Storage purge error:', e);
+  }
+}
 
 function getScopedKey(baseKey: string, userId?: string): string {
   if (!userId) return baseKey;
@@ -301,12 +318,7 @@ export const StorageService = {
   // Company Settings
   getCompanySettings(userId?: string): CompanySettings {
     const key = getScopedKey(BASE_KEYS.SETTINGS, userId);
-    const s = getItem(key, initialCompanySettings);
-    if (!s.logoUrl || s.logoUrl.includes('unsplash')) {
-      s.logoUrl = '/zipcon_logo.png';
-      setItem(key, s);
-    }
-    return s;
+    return getItem(key, initialCompanySettings);
   },
   saveCompanySettings(settings: CompanySettings, userId?: string): CompanySettings {
     const key = getScopedKey(BASE_KEYS.SETTINGS, userId);

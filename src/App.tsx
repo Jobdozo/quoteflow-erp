@@ -26,13 +26,6 @@ import { AutoUpdateModal } from './components/common/AutoUpdateModal';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
 
-// Firebase Cloud Services (replaces LocalStorage)
-import {
-  FirebaseQuotations, FirebaseInvoices, FirebaseCustomers,
-  FirebaseProducts, FirebaseFollowUps, FirebaseSettings,
-  FirebaseEmailLogs, FirebaseAudit,
-} from './firebase/FirebaseService';
-
 import { StorageService } from './utils/storage';
 import { SyncService } from './services/SyncService';
 import type {
@@ -51,35 +44,11 @@ import type {
 } from './types';
 
 export function App() {
+  // ── ALL HOOKS DECLARED AT TOP LEVEL (React Rules of Hooks) ──────────────
   const { user, loading: authLoading, logout } = useFirebaseAuth();
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [isOpenMobile, setIsOpenMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // ── Firebase Auth Gate ────────────────────────────────────────────────
-  if (authLoading) {
-    return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0f172a, #1e1b4b)',
-        color: '#fff', fontFamily: 'Inter, sans-serif', gap: 16,
-      }}>
-        <div style={{
-          width: 48, height: 48, border: '3px solid rgba(99,102,241,0.3)',
-          borderTopColor: '#6366f1', borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
-          Connecting to QuoteFlow Cloud...
-        </p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
-
-  if (!user) return <LoginScreen />;
-  // ─────────────────────────────────────────────────────────────────────
 
   // Domain States loaded from StorageService
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -139,6 +108,31 @@ export function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // ── AUTH GATES PLACED AFTER ALL HOOKS (Fixes post-login blank screen crash) ──
+  if (authLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0f172a, #1e1b4b)',
+        color: '#fff', fontFamily: 'Inter, sans-serif', gap: 16,
+      }}>
+        <div style={{
+          width: 48, height: 48, border: '3px solid rgba(99,102,241,0.3)',
+          borderTopColor: '#6366f1', borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
+          Connecting to QuoteFlow Cloud...
+        </p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!user) return <LoginScreen />;
+  // ───────────────────────────────────────────────────────────────────────
 
   // Handlers with automatic cross-module synchronization
   const handleSaveQuotation = (quotation: Quotation) => {
@@ -223,6 +217,11 @@ export function App() {
     setCurrentTab('email-center');
   };
 
+  const handleSendEmailSubmit = (log: EmailLog) => {
+    StorageService.addEmailLog(log);
+    refreshAllState();
+  };
+
   const handleUseTemplate = (template: ProposalTemplate) => {
     const newDraft: Quotation = {
       id: `q-${Date.now()}`,
@@ -252,13 +251,23 @@ export function App() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-
     setEditingQuotation(newDraft);
     setCurrentTab('new-quotation');
   };
 
+  // Fullscreen PDF Document Preview Override
+  if (previewQuotation) {
+    return (
+      <PDFDocumentView
+        quotation={previewQuotation}
+        settings={settings}
+        onClose={() => setPreviewQuotation(null)}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex text-slate-900 font-sans">
+    <div className="min-h-screen bg-slate-900 flex font-sans antialiased text-slate-100 selection:bg-indigo-500 selection:text-white">
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
@@ -270,8 +279,8 @@ export function App() {
         setIsOpenMobile={setIsOpenMobile}
       />
 
-      {/* Main Area */}
-      <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 bg-slate-50 text-slate-900 overflow-x-hidden">
         {/* Top Header */}
         <Header
           onToggleMobileSidebar={() => setIsOpenMobile(!isOpenMobile)}
@@ -288,16 +297,13 @@ export function App() {
           onOpenAutoUpdate={() => setShowAutoUpdateModal(true)}
         />
 
-        {/* View Content Container */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        {/* Dynamic View Router */}
+        <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto animate-in fade-in duration-200">
           {currentTab === 'dashboard' && (
             <DashboardView
               quotations={quotations}
               followUps={followUps}
-              onNavigate={(tab) => {
-                if (tab === 'new-quotation') setEditingQuotation(null);
-                setCurrentTab(tab);
-              }}
+              onNavigate={(tab) => setCurrentTab(tab as NavTab)}
               onSelectQuotation={(q) => setPreviewQuotation(q)}
               onSendWhatsApp={handleLaunchWhatsApp}
               onSendEmail={handleLaunchEmail}
@@ -314,7 +320,10 @@ export function App() {
               onPreviewPDF={(q) => setPreviewQuotation(q)}
               onSendWhatsApp={handleLaunchWhatsApp}
               onSendEmail={handleLaunchEmail}
-              onCancel={() => setCurrentTab('quotations')}
+              onCancel={() => {
+                setEditingQuotation(null);
+                setCurrentTab('quotations');
+              }}
             />
           )}
 
@@ -360,49 +369,44 @@ export function App() {
           )}
 
           {currentTab === 'gst-accounting' && (
-            <GSTAccountingView invoices={invoices} settings={settings} />
+            <GSTAccountingView
+              invoices={invoices}
+              settings={settings}
+            />
           )}
 
-          {currentTab === 'calendar' && <CalendarView />}
+          {currentTab === 'calendar' && (
+            <CalendarView />
+          )}
 
           {currentTab === 'customers' && (
-            <CustomersView customers={customers} onSaveCustomer={handleSaveCustomer} />
+            <CustomersView
+              customers={customers}
+              onSaveCustomer={handleSaveCustomer}
+            />
           )}
 
           {currentTab === 'products' && (
-            <ProductsView products={products} onSaveProduct={handleSaveProduct} />
+            <ProductsView
+              products={products}
+              onSaveProduct={handleSaveProduct}
+            />
           )}
 
           {currentTab === 'price-list' && (
             <PriceListView
               products={products}
-              onSelectPackage={(p) => {
-                handleUseTemplate({
-                  id: `tpl-${Date.now()}`,
-                  title: p.name,
-                  category: p.category,
-                  description: p.description,
-                  defaultItems: [
-                    {
-                      name: p.name,
-                      description: p.description,
-                      unit: p.unit,
-                      quantity: 1,
-                      rate: p.rate,
-                      discount: 0,
-                      gstRate: p.gstRate,
-                      total: Math.round(p.rate * (1 + p.gstRate / 100)),
-                      costPerUnit: p.costPrice,
-                    },
-                  ],
-                  defaultTerms: settings.defaultTerms,
-                });
+              onSelectPackage={(prod) => {
+                setCurrentTab('new-quotation');
               }}
             />
           )}
 
           {currentTab === 'templates' && (
-            <TemplatesView templates={templates} onUseTemplate={handleUseTemplate} />
+            <TemplatesView
+              templates={templates}
+              onUseTemplate={handleUseTemplate}
+            />
           )}
 
           {currentTab === 'follow-ups' && (
@@ -426,24 +430,29 @@ export function App() {
               quotations={quotations}
               settings={settings}
               emailLogs={emailLogs}
-              onSendEmailSubmit={(log) => {
-                const updated = StorageService.addEmailLog(log);
-                setEmailLogs(updated);
-                refreshAllState();
-              }}
+              onSendEmailSubmit={handleSendEmailSubmit}
               selectedQuotationForEmail={selectedQuotationForEmail}
             />
           )}
 
-          {currentTab === 'reports' && <ReportsView quotations={quotations} />}
-
-          {currentTab === 'team' && (
-            <TeamView teamMembers={teamMembers} onSaveTeamMember={handleSaveTeamMember} />
+          {currentTab === 'reports' && (
+            <ReportsView quotations={quotations} />
           )}
 
-          {currentTab === 'integrations' && <IntegrationsView />}
+          {currentTab === 'team' && (
+            <TeamView
+              teamMembers={teamMembers}
+              onSaveTeamMember={handleSaveTeamMember}
+            />
+          )}
 
-          {currentTab === 'security' && <SecurityAuditView auditLogs={auditLogs} />}
+          {currentTab === 'integrations' && (
+            <IntegrationsView />
+          )}
+
+          {currentTab === 'security' && (
+            <SecurityAuditView auditLogs={auditLogs} />
+          )}
 
           {currentTab === 'settings' && (
             <SettingsView
@@ -455,7 +464,7 @@ export function App() {
         </main>
       </div>
 
-      {/* Floating AI Business Assistant */}
+      {/* Floating AI Assistant */}
       <FloatingAiAssistant
         quotations={quotations}
         onOpenQuotationBuilder={() => {
@@ -464,18 +473,9 @@ export function App() {
         }}
       />
 
-      {/* GitHub Auto Update Releases Modal */}
+      {/* Auto Update Modal */}
       {showAutoUpdateModal && (
         <AutoUpdateModal onClose={() => setShowAutoUpdateModal(false)} />
-      )}
-
-      {/* PDF Document Preview & Download Modal */}
-      {previewQuotation && (
-        <PDFDocumentView
-          quotation={previewQuotation}
-          settings={settings}
-          onClose={() => setPreviewQuotation(null)}
-        />
       )}
     </div>
   );

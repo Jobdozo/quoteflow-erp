@@ -29,7 +29,7 @@ const KEYS = {
   SETTINGS: 'quoteflow_settings',
   AUDIT_LOGS: 'quoteflow_audit_logs',
   EVENTS: 'quoteflow_events',
-  CLEAN_FLAG: 'quoteflow_seeded_data_purged_v1',
+  CLEAN_FLAG: 'quoteflow_seeded_data_purged_v2',
 };
 
 // Auto purge legacy seeded mock data once on boot
@@ -43,6 +43,7 @@ if (typeof window !== 'undefined') {
       localStorage.removeItem(KEYS.FOLLOW_UPS);
       localStorage.removeItem(KEYS.TEAM_MEMBERS);
       localStorage.removeItem(KEYS.AUDIT_LOGS);
+      localStorage.removeItem(KEYS.EVENTS);
       localStorage.setItem(KEYS.CLEAN_FLAG, 'true');
     }
   } catch (e) {
@@ -69,6 +70,29 @@ function setItem<T>(key: string, value: T): void {
 }
 
 export const StorageService = {
+  // Calendar Events
+  getEvents(): CalendarEvent[] {
+    return getItem(KEYS.EVENTS, []);
+  },
+  saveEvent(event: CalendarEvent): CalendarEvent[] {
+    const list = this.getEvents();
+    const index = list.findIndex((e) => e.id === event.id);
+    if (index >= 0) {
+      list[index] = event;
+    } else {
+      list.unshift(event);
+    }
+    setItem(KEYS.EVENTS, list);
+    this.addAuditLog(`Scheduled Event: ${event.title}`, 'Calendar & Schedules');
+    return list;
+  },
+  deleteEvent(id: string): CalendarEvent[] {
+    const list = this.getEvents();
+    const updated = list.filter((e) => e.id !== id);
+    setItem(KEYS.EVENTS, updated);
+    return updated;
+  },
+
   // Audit Logs
   getAuditLogs(): AuditLog[] {
     return getItem(KEYS.AUDIT_LOGS, []);
@@ -299,6 +323,7 @@ export const StorageService = {
     localStorage.removeItem(KEYS.TEAM_MEMBERS);
     localStorage.removeItem(KEYS.SETTINGS);
     localStorage.removeItem(KEYS.AUDIT_LOGS);
+    localStorage.removeItem(KEYS.EVENTS);
     localStorage.setItem(KEYS.CLEAN_FLAG, 'true');
   },
 };

@@ -379,14 +379,14 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             <div className="hidden lg:block text-left pr-1">
               <p className="text-xs font-bold text-slate-800 leading-none">{displayName}</p>
-              <span className="text-[10px] text-slate-400 font-medium">Admin · Firebase</span>
+              <span className="text-[10px] text-slate-400 font-medium">Administrator</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden lg:block" />
           </button>
 
           {showProfileMenu && (
             <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50">
-              {/* Firebase User Info */}
+              {/* User Profile Summary */}
               <div className="p-3 border-b border-slate-100 mb-1 flex items-center space-x-3">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt={displayName}
@@ -399,7 +399,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <div>
                   <p className="text-sm font-bold text-slate-800 leading-none">{displayName}</p>
                   <p className="text-xs text-slate-400 mt-0.5">{userEmail}</p>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">🔥 Firebase Signed In</span>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200">🟢 Verified Session</span>
                 </div>
               </div>
               <button
@@ -417,13 +417,12 @@ export const Header: React.FC<HeaderProps> = ({
                 <span>Company Settings</span>
               </button>
               <div className="border-t border-slate-100 my-1" />
-              {/* ✅ FIXED: Calls actual Firebase logout */}
               <button
                 onClick={async () => { setShowProfileMenu(false); await logout(); }}
                 className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Log Out from Firebase</span>
+                <span>Sign Out</span>
               </button>
             </div>
           )}

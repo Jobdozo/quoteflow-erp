@@ -109,7 +109,7 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // ── AUTH GATES PLACED AFTER ALL HOOKS (Fixes post-login blank screen crash) ──
+  // ── AUTH GATES PLACED AFTER ALL HOOKS ──────────────────────────────────
   if (authLoading) {
     return (
       <div style={{
@@ -279,8 +279,8 @@ export function App() {
         setIsOpenMobile={setIsOpenMobile}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-50 text-slate-900 overflow-x-hidden">
+      {/* Main Content Area — FIX: Added lg:pl-64 so fixed Sidebar never overlaps main content */}
+      <div className="flex-1 lg:pl-64 flex flex-col min-w-0 bg-slate-50 text-slate-900 overflow-x-hidden transition-all duration-300">
         {/* Top Header */}
         <Header
           onToggleMobileSidebar={() => setIsOpenMobile(!isOpenMobile)}

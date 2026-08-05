@@ -23,6 +23,15 @@ import { SettingsView } from './components/views/SettingsView';
 import { PDFDocumentView } from './components/pdf/PDFDocumentView';
 import { FloatingAiAssistant } from './components/ai/FloatingAiAssistant';
 import { AutoUpdateModal } from './components/common/AutoUpdateModal';
+import { LoginScreen } from './components/auth/LoginScreen';
+import { useFirebaseAuth } from './hooks/useFirebaseAuth';
+
+// Firebase Cloud Services (replaces LocalStorage)
+import {
+  FirebaseQuotations, FirebaseInvoices, FirebaseCustomers,
+  FirebaseProducts, FirebaseFollowUps, FirebaseSettings,
+  FirebaseEmailLogs, FirebaseAudit,
+} from './firebase/FirebaseService';
 
 import { StorageService } from './utils/storage';
 import { SyncService } from './services/SyncService';
@@ -42,9 +51,35 @@ import type {
 } from './types';
 
 export function App() {
+  const { user, loading: authLoading, logout } = useFirebaseAuth();
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [isOpenMobile, setIsOpenMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // ── Firebase Auth Gate ────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0f172a, #1e1b4b)',
+        color: '#fff', fontFamily: 'Inter, sans-serif', gap: 16,
+      }}>
+        <div style={{
+          width: 48, height: 48, border: '3px solid rgba(99,102,241,0.3)',
+          borderTopColor: '#6366f1', borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
+          Connecting to QuoteFlow Cloud...
+        </p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!user) return <LoginScreen />;
+  // ─────────────────────────────────────────────────────────────────────
 
   // Domain States loaded from StorageService
   const [quotations, setQuotations] = useState<Quotation[]>([]);

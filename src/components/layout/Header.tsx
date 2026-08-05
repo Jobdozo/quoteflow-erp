@@ -21,6 +21,7 @@ import {
 import { NavTab } from './Sidebar';
 import type { Quotation, Customer, Product } from '../../types';
 import { SyncService, SyncStatus } from '../../services/SyncService';
+import { useFirebaseAuth } from '../../hooks/useFirebaseAuth';
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -45,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectQuotation,
   onOpenAutoUpdate,
 }) => {
+  const { user, logout } = useFirebaseAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [currentBranch, setCurrentBranch] = useState('Gurugram HQ');
@@ -58,6 +60,12 @@ export const Header: React.FC<HeaderProps> = ({
     });
     return () => unsubscribe();
   }, []);
+
+  // Firebase user display info
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Admin';
+  const userEmail   = user?.email || 'admin@zipcon.in';
+  const userInitial = displayName.charAt(0).toUpperCase();
+  const avatarUrl   = user?.photoURL || null;
 
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Quotation Q-2026-124 Viewed by Reliance Smart', time: '10m ago', unread: true },
@@ -361,49 +369,61 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center space-x-2 p-1 rounded-xl hover:bg-slate-100 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white font-bold text-xs flex items-center justify-center shadow-md">
-              A
-            </div>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={displayName}
+                className="w-8 h-8 rounded-full object-cover shadow-md border-2 border-indigo-200" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white font-bold text-xs flex items-center justify-center shadow-md">
+                {userInitial}
+              </div>
+            )}
             <div className="hidden lg:block text-left pr-1">
-              <p className="text-xs font-bold text-slate-800 leading-none">Ankit Sharma</p>
-              <span className="text-[10px] text-slate-400 font-medium">Admin</span>
+              <p className="text-xs font-bold text-slate-800 leading-none">{displayName}</p>
+              <span className="text-[10px] text-slate-400 font-medium">Admin · Firebase</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden lg:block" />
           </button>
 
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50">
-              <div className="p-2 border-b border-slate-100 mb-1">
-                <p className="text-sm font-bold text-slate-800">Ankit Sharma</p>
-                <p className="text-xs text-slate-400">ankit.s@zipconservices.com</p>
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50">
+              {/* Firebase User Info */}
+              <div className="p-3 border-b border-slate-100 mb-1 flex items-center space-x-3">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-indigo-200" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white font-bold flex items-center justify-center">
+                    {userInitial}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-bold text-slate-800 leading-none">{displayName}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{userEmail}</p>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">🔥 Firebase Signed In</span>
+                </div>
               </div>
               <button
-                onClick={() => {
-                  onNavigate('settings');
-                  setShowProfileMenu(false);
-                }}
+                onClick={() => { onNavigate('settings'); setShowProfileMenu(false); }}
                 className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-xl"
               >
                 <User className="w-4 h-4 text-slate-400" />
                 <span>My Profile</span>
               </button>
               <button
-                onClick={() => {
-                  onNavigate('settings');
-                  setShowProfileMenu(false);
-                }}
+                onClick={() => { onNavigate('settings'); setShowProfileMenu(false); }}
                 className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-xl"
               >
                 <SettingsIcon className="w-4 h-4 text-slate-400" />
                 <span>Company Settings</span>
               </button>
               <div className="border-t border-slate-100 my-1" />
+              {/* ✅ FIXED: Calls actual Firebase logout */}
               <button
-                onClick={() => setShowProfileMenu(false)}
+                onClick={async () => { setShowProfileMenu(false); await logout(); }}
                 className="w-full flex items-center space-x-2 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Log Out</span>
+                <span>Log Out from Firebase</span>
               </button>
             </div>
           )}

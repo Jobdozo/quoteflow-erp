@@ -19,13 +19,14 @@ import {
   User,
   AtSign,
   Pen,
-  ToggleLeft,
-  ToggleRight,
   CheckCircle2,
   AlertCircle,
   Wifi,
+  Zap as ZapIcon,
+  ExternalLink,
 } from 'lucide-react';
 import { StorageService } from '../../utils/storage';
+import { sendRealEmail, getEmailJSConfig } from '../../utils/emailService';
 
 const EMAIL_PROVIDERS = [
   { id: 'sendgrid', label: 'SendGrid', icon: '📧', smtpHost: 'smtp.sendgrid.net', smtpPort: '587', encryption: 'STARTTLS' },
@@ -35,7 +36,7 @@ const EMAIL_PROVIDERS = [
   { id: 'custom', label: 'Custom SMTP', icon: '⚙️', smtpHost: '', smtpPort: '587', encryption: 'STARTTLS' },
 ];
 
-type EmailTab = 'smtp' | 'sender' | 'tracking' | 'test';
+type EmailTab = 'emailjs' | 'smtp' | 'sender' | 'tracking' | 'test';
 
 interface EmailSettings {
   provider: string;
@@ -57,6 +58,9 @@ interface EmailSettings {
   autoAttachPdf: string;
   trackOpenEvents: string;
   trackClickEvents: string;
+  emailjsServiceId: string;
+  emailjsTemplateId: string;
+  emailjsPublicKey: string;
 }
 
 const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
@@ -79,6 +83,9 @@ const DEFAULT_EMAIL_SETTINGS: EmailSettings = {
   autoAttachPdf: 'true',
   trackOpenEvents: 'true',
   trackClickEvents: 'true',
+  emailjsServiceId: '',
+  emailjsTemplateId: '',
+  emailjsPublicKey: '',
 };
 
 const EmailSettingsPanel: React.FC<{ onClose: () => void; onSave: (cfg: EmailSettings) => void; initial: EmailSettings }> = ({
@@ -86,7 +93,7 @@ const EmailSettingsPanel: React.FC<{ onClose: () => void; onSave: (cfg: EmailSet
   onSave,
   initial,
 }) => {
-  const [activeTab, setActiveTab] = useState<EmailTab>('smtp');
+  const [activeTab, setActiveTab] = useState<EmailTab>('emailjs');
   const [form, setForm] = useState<EmailSettings>(initial);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -120,17 +127,29 @@ const EmailSettingsPanel: React.FC<{ onClose: () => void; onSave: (cfg: EmailSet
     setTimeout(() => setSaveSuccess(false), 2500);
   };
 
-  const handleSendTestEmail = () => {
+  const handleSendTestEmail = async () => {
     if (!testEmail.trim()) return;
     setIsTesting(true);
     setTestResult(null);
-    setTimeout(() => {
-      setIsTesting(false);
-      setTestResult({
-        type: 'success',
-        message: `✅ Test email dispatched to ${testEmail}!\n\nSMTP Response: 250 OK — Message accepted for delivery\nMessage-ID: <test-${Date.now()}@quoteflow-erp>\nTracking Pixel: Embedded successfully\nDelivery Time: 0.43s`,
-      });
-    }, 2000);
+    const config = {
+      serviceId: form.emailjsServiceId,
+      templateId: form.emailjsTemplateId,
+      publicKey: form.emailjsPublicKey,
+    };
+    const result = await sendRealEmail(
+      {
+        toEmail: testEmail,
+        toName: testEmail,
+        fromName: form.fromName || 'QuoteFlow ERP',
+        fromEmail: form.fromEmail || '',
+        replyTo: form.replyToEmail,
+        subject: '✅ QuoteFlow ERP — Email Configuration Test',
+        message: `This is a test email sent from your QuoteFlow ERP system.\n\nIf you received this, your email settings are working correctly!\n\nConfiguration:\n• Provider: ${form.provider}\n• SMTP Host: ${form.smtpHost}:${form.smtpPort}\n• Encryption: ${form.encryption}\n• From: ${form.fromName} <${form.fromEmail}>`,
+      },
+      config
+    );
+    setIsTesting(false);
+    setTestResult({ type: result.success ? 'success' : 'error', message: result.message });
   };
 
   const handleSmtpPing = () => {
@@ -150,6 +169,7 @@ const EmailSettingsPanel: React.FC<{ onClose: () => void; onSave: (cfg: EmailSet
   };
 
   const tabs: { id: EmailTab; label: string; icon: React.ElementType }[] = [
+    { id: 'emailjs', label: '🚀 EmailJS Setup', icon: ZapIcon },
     { id: 'smtp', label: 'SMTP / API Config', icon: Server },
     { id: 'sender', label: 'Sender Identity', icon: User },
     { id: 'tracking', label: 'Pixel Tracking', icon: Eye },
@@ -211,6 +231,131 @@ const EmailSettingsPanel: React.FC<{ onClose: () => void; onSave: (cfg: EmailSet
 
         {/* Tab Content — scrollable */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+          {/* ── TAB: EmailJS Setup ─────────────────────────── */}
+          {activeTab === 'emailjs' && (
+            <div className="space-y-4">
+              {/* Hero banner */}
+              <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-5 rounded-2xl text-white space-y-2">
+                <div className="flex items-center space-x-2">
+                  <ZapIcon className="w-5 h-5 text-yellow-300" />
+                  <h3 className="font-bold text-sm">Send Real Emails from the Browser — No Server Needed</h3>
+                </div>
+                <p className="text-xs text-indigo-100 leading-relaxed">
+                  This app runs on GitHub Pages (static hosting). To send actual emails, connect your <strong>EmailJS</strong> account. It bridges the browser directly to your Gmail, Outlook, or SendGrid — no backend required.
+                </p>
+                <a
+                  href="https://www.emailjs.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1 text-xs font-bold text-yellow-300 hover:text-white mt-1"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Create FREE EmailJS Account →</span>
+                </a>
+              </div>
+
+              {/* Step-by-step guide */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">⚡ 5-Minute Setup Guide</h4>
+                {[
+                  { step: '1', title: 'Create EmailJS Account', desc: 'Go to emailjs.com and sign up for free (200 emails/month free)', link: 'https://www.emailjs.com' },
+                  { step: '2', title: 'Add Email Service', desc: 'Connect Gmail / Outlook / SendGrid. Copy your Service ID (e.g. service_abc123)', link: 'https://dashboard.emailjs.com/admin' },
+                  { step: '3', title: 'Create Email Template', desc: 'Use variables: {{to_email}} {{from_name}} {{subject}} {{message}} {{reply_to}}. Copy Template ID', link: 'https://dashboard.emailjs.com/admin/templates' },
+                  { step: '4', title: 'Copy Public Key', desc: 'Go to Account → API Keys. Copy your Public Key (starts with user_ or letters)', link: 'https://dashboard.emailjs.com/admin/account' },
+                  { step: '5', title: 'Paste Below & Save', desc: 'Enter all 3 IDs below, click Save Settings, then use Test & Verify tab to confirm real delivery', link: null },
+                ].map((item) => (
+                  <div key={item.step} className="flex items-start space-x-3">
+                    <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                      {item.step}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">{item.title}</p>
+                      <p className="text-[11px] text-slate-500">{item.desc}</p>
+                      {item.link && (
+                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-[10px] text-indigo-600 hover:underline font-semibold">
+                          {item.link} ↗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* EmailJS Credentials */}
+              <div className="bg-white p-4 rounded-2xl border border-indigo-200 shadow-sm space-y-3">
+                <h4 className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider flex items-center space-x-1.5">
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Your EmailJS Credentials</span>
+                </h4>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-600 mb-1">
+                      EmailJS Service ID
+                      <span className="ml-1 text-slate-400 font-normal">(e.g. service_abc123)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.emailjsServiceId}
+                      onChange={(e) => set('emailjsServiceId', e.target.value)}
+                      placeholder="service_xxxxxxx"
+                      className="w-full bg-slate-50 border border-indigo-200 rounded-xl px-3 py-2.5 font-bold text-slate-800 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-600 mb-1">
+                      EmailJS Template ID
+                      <span className="ml-1 text-slate-400 font-normal">(e.g. template_xyz789)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.emailjsTemplateId}
+                      onChange={(e) => set('emailjsTemplateId', e.target.value)}
+                      placeholder="template_xxxxxxx"
+                      className="w-full bg-slate-50 border border-indigo-200 rounded-xl px-3 py-2.5 font-bold text-slate-800 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-600 mb-1">
+                      EmailJS Public Key
+                      <span className="ml-1 text-slate-400 font-normal">(from Account → API Keys)</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords['emailjsPublicKey'] ? 'text' : 'password'}
+                        value={form.emailjsPublicKey}
+                        onChange={(e) => set('emailjsPublicKey', e.target.value)}
+                        placeholder="Your EmailJS Public Key"
+                        className="w-full bg-slate-50 border border-indigo-200 rounded-xl px-3 py-2.5 pr-10 font-bold text-slate-800 outline-none focus:border-indigo-500"
+                      />
+                      <button onClick={() => togglePw('emailjsPublicKey')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        {showPasswords['emailjsPublicKey'] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status indicator */}
+              <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 ${
+                form.emailjsServiceId && form.emailjsTemplateId && form.emailjsPublicKey
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-amber-50 border-amber-200 text-amber-800'
+              }`}>
+                {form.emailjsServiceId && form.emailjsTemplateId && form.emailjsPublicKey ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>EmailJS is configured. Click <strong>Test & Verify</strong> tab to send a real test email.</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Enter all 3 credentials above and click <strong>Save Settings</strong> to activate real email delivery.</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── TAB: SMTP / API Config ─────────────────────── */}
           {activeTab === 'smtp' && (

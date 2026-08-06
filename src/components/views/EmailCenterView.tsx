@@ -4,8 +4,8 @@ import {
   Send,
   Eye,
   CheckCircle2,
-  Clock,
   AlertCircle,
+  Clock,
   Paperclip,
   Inbox,
   RefreshCw,
@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Quotation, CompanySettings, EmailLog, InboxEmail, PixelEvent } from '../../types';
 import { StorageService } from '../../utils/storage';
+import { sendRealEmail, getEmailJSConfig } from '../../utils/emailService';
 
 interface EmailCenterViewProps {
   quotations: Quotation[];
@@ -157,6 +158,7 @@ export const EmailCenterView: React.FC<EmailCenterViewProps> = ({
   const [emailBody, setEmailBody] = useState(() => buildEmailBody(defaultQuote, settings));
   const [isSending, setIsSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [showCcBcc, setShowCcBcc] = useState(false);
 
   function buildEmailBody(q: Quotation | undefined, s: CompanySettings): string {
@@ -171,38 +173,59 @@ export const EmailCenterView: React.FC<EmailCenterViewProps> = ({
     setEmailBody(buildEmailBody(q, settings));
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!toEmail.trim()) return;
     setIsSending(true);
-    setTimeout(() => {
-      const pixelId = `px-${Math.floor(100000 + Math.random() * 900000)}`;
-      const mockEvents = generateMockPixelEvents();
-      const newLog: EmailLog = {
-        id: `em-${Date.now()}`,
-        quotationId: activeQuotation?.id || '',
-        quotationNumber: activeQuotation?.quotationNumber || '—',
-        customerEmail: toEmail,
-        customerName: activeQuotation?.customerName || toEmail,
-        subject,
-        body: emailBody,
+    setSendError(null);
+    setSendSuccess(false);
+
+    const pixelId = `px-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // Try real EmailJS delivery
+    const emailJsConfig = getEmailJSConfig();
+    const realResult = await sendRealEmail(
+      {
+        toEmail,
+        toName: activeQuotation?.customerName || toEmail,
+        fromName: settings.companyName || 'QuoteFlow ERP',
+        fromEmail: settings.email || '',
+        replyTo: settings.email || '',
         cc: ccEmail,
-        bcc: bccEmail,
-        status: 'Delivered',
-        sentAt: new Date().toISOString(),
-        trackingPixelId: pixelId,
-        openCount: 0,
-        clickCount: 0,
-        pixelEvents: [],
+        subject,
+        message: emailBody,
         attachmentName: activeQuotation ? `${activeQuotation.quotationNumber}_Quotation.pdf` : undefined,
-      };
-      onSendEmailSubmit(newLog);
-      setIsSending(false);
+        trackingPixelId: pixelId,
+      },
+      emailJsConfig
+    );
+
+    const newLog: EmailLog = {
+      id: `em-${Date.now()}`,
+      quotationId: activeQuotation?.id || '',
+      quotationNumber: activeQuotation?.quotationNumber || '—',
+      customerEmail: toEmail,
+      customerName: activeQuotation?.customerName || toEmail,
+      subject,
+      body: emailBody,
+      cc: ccEmail,
+      bcc: bccEmail,
+      status: realResult.success ? 'Delivered' : 'Sent',
+      sentAt: new Date().toISOString(),
+      trackingPixelId: pixelId,
+      openCount: 0,
+      clickCount: 0,
+      pixelEvents: [],
+      attachmentName: activeQuotation ? `${activeQuotation.quotationNumber}_Quotation.pdf` : undefined,
+    };
+    onSendEmailSubmit(newLog);
+    setIsSending(false);
+
+    if (realResult.success) {
       setSendSuccess(true);
-      setTimeout(() => {
-        setSendSuccess(false);
-        setActiveTab('sent');
-      }, 1500);
-    }, 1200);
+      setTimeout(() => { setSendSuccess(false); setActiveTab('sent'); }, 2000);
+    } else {
+      setSendError(realResult.message);
+    }
   };
 
   const handleReplyToInbox = (email: InboxEmail) => {
@@ -451,7 +474,23 @@ export const EmailCenterView: React.FC<EmailCenterViewProps> = ({
             {sendSuccess && (
               <div className="mx-4 mt-3 p-3 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Email dispatched successfully! Pixel tracking is now active.</span>
+                <span>✅ Email delivered successfully via EmailJS! Pixel tracking is now active.</span>
+              </div>
+            )}
+
+            {sendError && (
+              <div className="mx-4 mt-3 p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
+                <p className="text-xs font-bold text-rose-800 flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Email Not Delivered — Action Required</span>
+                </p>
+                <pre className="text-[11px] text-rose-700 whitespace-pre-wrap leading-relaxed font-mono">{sendError}</pre>
+                <button
+                  onClick={() => setSendError(null)}
+                  className="text-[10px] font-bold text-rose-500 hover:text-rose-700 underline"
+                >
+                  Dismiss
+                </button>
               </div>
             )}
 

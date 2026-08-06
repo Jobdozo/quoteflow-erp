@@ -284,7 +284,7 @@ export const Header: React.FC<HeaderProps> = ({
           title="GitHub Auto Update Releases"
         >
           <DownloadCloud className="w-3.5 h-3.5" />
-          <span>v1.0.0</span>
+          <span>v1.0.2 Live</span>
         </button>
 
         {/* Branch Selector */}

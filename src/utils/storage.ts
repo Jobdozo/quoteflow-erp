@@ -16,6 +16,16 @@ import {
   Integration,
 } from '../types';
 import { initialCompanySettings } from '../data/mockData';
+import {
+  FirebaseQuotations,
+  FirebaseInvoices,
+  FirebaseCustomers,
+  FirebaseProducts,
+  FirebaseFollowUps,
+  FirebaseSettings,
+  FirebaseEmailLogs,
+  FirebaseAudit,
+} from '../firebase/FirebaseService';
 
 const BASE_KEYS = {
   QUOTATIONS: 'quoteflow_quotations',
@@ -130,6 +140,7 @@ export const StorageService = {
     };
     logs.unshift(newLog);
     setItem(key, logs);
+    FirebaseAudit.log(action, module, undefined, userId).catch(() => {});
     return logs;
   },
 
@@ -142,12 +153,17 @@ export const StorageService = {
     const list = getItem<Quotation[]>(key, []);
     const existingIndex = list.findIndex((q) => q.id === quotation.id);
 
+    const updatedQuotation = { ...quotation, updatedAt: new Date().toISOString() };
     if (existingIndex >= 0) {
-      list[existingIndex] = { ...quotation, updatedAt: new Date().toISOString() };
+      list[existingIndex] = updatedQuotation;
     } else {
-      list.unshift(quotation);
+      list.unshift(updatedQuotation);
     }
     setItem(key, list);
+
+    // Sync to Firebase Cloud Database
+    FirebaseQuotations.save(updatedQuotation, userId).catch(() => {});
+
     this.addAuditLog(
       `${existingIndex >= 0 ? 'Updated' : 'Created'} Quotation ${quotation.quotationNumber} (${quotation.companyName})`,
       'Quotations CRM',
@@ -161,6 +177,10 @@ export const StorageService = {
     const q = list.find((item) => item.id === id);
     const updated = list.filter((item) => item.id !== id);
     setItem(key, updated);
+
+    // Sync to Firebase Cloud Database
+    FirebaseQuotations.delete(id, userId).catch(() => {});
+
     if (q) {
       this.addAuditLog(`Deleted Quotation ${q.quotationNumber}`, 'Quotations CRM', userId);
     }
@@ -174,6 +194,10 @@ export const StorageService = {
       q.status = status;
       q.updatedAt = new Date().toISOString();
       setItem(key, list);
+
+      // Sync to Firebase Cloud Database
+      FirebaseQuotations.updateStatus(id, status, userId).catch(() => {});
+
       this.addAuditLog(`Updated Status for ${q.quotationNumber} -> ${status}`, 'Quotations CRM', userId);
     }
     return list;
@@ -193,6 +217,10 @@ export const StorageService = {
       list.unshift(invoice);
     }
     setItem(key, list);
+
+    // Sync to Firebase Cloud Database
+    FirebaseInvoices.save(invoice, userId).catch(() => {});
+
     this.addAuditLog(`Generated Invoice ${invoice.invoiceNumber} for ${invoice.companyName}`, 'Monthly Billing', userId);
     return list;
   },
@@ -200,27 +228,35 @@ export const StorageService = {
     const key = getScopedKey(BASE_KEYS.INVOICES, userId);
     const list = getItem<MonthlyInvoice[]>(key, []);
     const invoice = list.find((inv) => inv.id === invoiceId);
+
     if (invoice) {
-      const newPayment: PaymentRecord = {
-        ...payment,
-        id: `pay-${Date.now()}`,
-      };
-      if (!invoice.payments) invoice.payments = [];
-      invoice.payments.push(newPayment);
+      const paymentId = `pay-${Date.now()}`;
+      const newPayment: PaymentRecord = { ...payment, id: paymentId };
+      invoice.payments = [...(invoice.payments || []), newPayment];
       invoice.paidAmount = invoice.payments.reduce((sum, p) => sum + p.amountPaid, 0);
       invoice.balanceDue = invoice.totalAmount - invoice.paidAmount;
+
       if (invoice.balanceDue <= 0) {
         invoice.status = 'Paid';
       } else if (invoice.paidAmount > 0) {
         invoice.status = 'Partially Paid';
       }
+
       setItem(key, list);
-      this.addAuditLog(`Recorded ₹${payment.amountPaid} Payment for Invoice ${invoice.invoiceNumber}`, 'Monthly Billing', userId);
+
+      // Sync to Firebase Cloud Database
+      FirebaseInvoices.recordPayment(invoiceId, payment, userId).catch(() => {});
+
+      this.addAuditLog(
+        `Recorded ₹${payment.amountPaid.toLocaleString('en-IN')} payment for Invoice ${invoice.invoiceNumber}`,
+        'Monthly Billing',
+        userId
+      );
     }
     return list;
   },
 
-  // Customers (CRM)
+  // Customers CRM
   getCustomers(userId?: string): Customer[] {
     return getItem(getScopedKey(BASE_KEYS.CUSTOMERS, userId), []);
   },
@@ -228,17 +264,34 @@ export const StorageService = {
     const key = getScopedKey(BASE_KEYS.CUSTOMERS, userId);
     const list = getItem<Customer[]>(key, []);
     const index = list.findIndex((c) => c.id === customer.id);
+    const updatedCustomer = { ...customer, updatedAt: new Date().toISOString() };
     if (index >= 0) {
-      list[index] = customer;
+      list[index] = updatedCustomer;
     } else {
-      list.unshift(customer);
+      list.unshift(updatedCustomer);
     }
     setItem(key, list);
-    this.addAuditLog(`Saved Customer: ${customer.companyName}`, 'Customers CRM', userId);
+
+    // Sync to Firebase Cloud Database
+    FirebaseCustomers.save(updatedCustomer, userId).catch(() => {});
+
+    this.addAuditLog(`Saved Customer Account: ${customer.companyName}`, 'Customers CRM', userId);
     return list;
   },
+  deleteCustomer(id: string, userId?: string): Customer[] {
+    const key = getScopedKey(BASE_KEYS.CUSTOMERS, userId);
+    const list = getItem<Customer[]>(key, []);
+    const updated = list.filter((c) => c.id !== id);
+    setItem(key, updated);
 
-  // Products & Rate Card
+    // Sync to Firebase Cloud Database
+    FirebaseCustomers.delete(id, userId).catch(() => {});
+
+    this.addAuditLog(`Deleted Customer Account ${id}`, 'Customers CRM', userId);
+    return updated;
+  },
+
+  // Products & Services Catalog
   getProducts(userId?: string): Product[] {
     return getItem(getScopedKey(BASE_KEYS.PRODUCTS, userId), []);
   },
@@ -252,16 +305,45 @@ export const StorageService = {
       list.unshift(product);
     }
     setItem(key, list);
-    this.addAuditLog(`Saved Product: ${product.name}`, 'Product Catalog', userId);
+
+    // Sync to Firebase Cloud Database
+    FirebaseProducts.save(product, userId).catch(() => {});
+
+    this.addAuditLog(`Updated Rate Card Item: ${product.name}`, 'Products & Services', userId);
     return list;
+  },
+  deleteProduct(id: string, userId?: string): Product[] {
+    const key = getScopedKey(BASE_KEYS.PRODUCTS, userId);
+    const list = getItem<Product[]>(key, []);
+    const updated = list.filter((p) => p.id !== id);
+    setItem(key, updated);
+
+    // Sync to Firebase Cloud Database
+    FirebaseProducts.delete(id, userId).catch(() => {});
+
+    this.addAuditLog(`Deleted Product/Service ${id}`, 'Products & Services', userId);
+    return updated;
   },
 
   // Proposal Templates
   getTemplates(userId?: string): ProposalTemplate[] {
     return getItem(getScopedKey(BASE_KEYS.TEMPLATES, userId), []);
   },
+  saveTemplate(template: ProposalTemplate, userId?: string): ProposalTemplate[] {
+    const key = getScopedKey(BASE_KEYS.TEMPLATES, userId);
+    const list = getItem<ProposalTemplate[]>(key, []);
+    const index = list.findIndex((t) => t.id === template.id);
+    if (index >= 0) {
+      list[index] = template;
+    } else {
+      list.unshift(template);
+    }
+    setItem(key, list);
+    this.addAuditLog(`Saved Proposal Template: ${template.title}`, 'Proposal Templates', userId);
+    return list;
+  },
 
-  // Follow Ups
+  // Follow-ups & Reminders
   getFollowUps(userId?: string): FollowUp[] {
     return getItem(getScopedKey(BASE_KEYS.FOLLOW_UPS, userId), []);
   },
@@ -275,7 +357,11 @@ export const StorageService = {
       list.unshift(followUp);
     }
     setItem(key, list);
-    this.addAuditLog(`Scheduled Follow-up for ${followUp.companyName}`, 'Calendar & Follow-ups', userId);
+
+    // Sync to Firebase Cloud Database
+    FirebaseFollowUps.save(followUp, userId).catch(() => {});
+
+    this.addAuditLog(`Scheduled Follow-Up for ${followUp.companyName}`, 'Follow Ups', userId);
     return list;
   },
   deleteFollowUp(id: string, userId?: string): FollowUp[] {
@@ -283,6 +369,10 @@ export const StorageService = {
     const list = getItem<FollowUp[]>(key, []);
     const updated = list.filter((f) => f.id !== id);
     setItem(key, updated);
+
+    // Sync to Firebase Cloud Database
+    FirebaseFollowUps.delete(id, userId).catch(() => {});
+
     return updated;
   },
 
@@ -292,24 +382,15 @@ export const StorageService = {
   },
   addEmailLog(log: EmailLog, userId?: string): EmailLog[] {
     const key = getScopedKey(BASE_KEYS.EMAIL_LOGS, userId);
-    const list = getItem<EmailLog[]>(key, []);
-    list.unshift(log);
-    setItem(key, list);
-    this.addAuditLog(`Dispatched Email to ${log.customerEmail} for ${log.quotationNumber}`, 'Email Center', userId);
-    return list;
-  },
+    const logs = getItem<EmailLog[]>(key, []);
+    logs.unshift(log);
+    setItem(key, logs);
 
-  // WhatsApp Logs
-  getWhatsAppLogs(userId?: string): WhatsAppLog[] {
-    return getItem(getScopedKey(BASE_KEYS.WHATSAPP_LOGS, userId), []);
-  },
-  addWhatsAppLog(log: WhatsAppLog, userId?: string): WhatsAppLog[] {
-    const key = getScopedKey(BASE_KEYS.WHATSAPP_LOGS, userId);
-    const list = getItem<WhatsAppLog[]>(key, []);
-    list.unshift(log);
-    setItem(key, list);
-    this.addAuditLog(`Sent WhatsApp message to ${log.customerMobile} for ${log.quotationNumber}`, 'WhatsApp Center', userId);
-    return list;
+    // Sync to Firebase Cloud Database
+    FirebaseEmailLogs.add(log, userId).catch(() => {});
+
+    this.addAuditLog(`Dispatched Email to ${log.customerEmail}`, 'Email Center', userId);
+    return logs;
   },
 
   // Team Members
@@ -338,6 +419,10 @@ export const StorageService = {
   saveCompanySettings(settings: CompanySettings, userId?: string): CompanySettings {
     const key = getScopedKey(BASE_KEYS.SETTINGS, userId);
     setItem(key, settings);
+
+    // Sync to Firebase Cloud Database
+    FirebaseSettings.save(settings, userId).catch(() => {});
+
     this.addAuditLog(`Updated Company Settings & Bank Credentials`, 'Settings', userId);
     return settings;
   },

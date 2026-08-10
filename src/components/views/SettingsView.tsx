@@ -1,5 +1,20 @@
-import React, { useState } from 'react';
-import { Save, RefreshCw, Building, CreditCard, ShieldCheck, FileText, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import {
+  Save,
+  RefreshCw,
+  Building,
+  CreditCard,
+  FileText,
+  Plus,
+  Trash2,
+  Upload,
+  Image as ImageIcon,
+  Check,
+  X,
+  FileCheck,
+  Stamp,
+  PenTool,
+} from 'lucide-react';
 import type { CompanySettings } from '../../types';
 
 interface SettingsViewProps {
@@ -17,8 +32,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [newTerm, setNewTerm] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
+  const stampInputRef = useRef<HTMLInputElement>(null);
+
   const handleChange = (field: keyof CompanySettings, value: any) => {
-    setFormData({ ...formData, [field]: value });
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileUpload = (
+    field: 'logoUrl' | 'digitalSignatureUrl' | 'companyStampUrl',
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 3 * 1024 * 1024) {
+        alert('File size exceeds 3MB. Please select a smaller image file.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          handleChange(field, event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleUpdateTerm = (index: number, value: string) => {
@@ -56,7 +95,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Company Settings & Terms Manager</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage your company legal profile, tax registration, bank transfer details, and default Terms & Conditions.
+            Manage your company logo, legal profile, tax registration, bank transfer details, and default Terms & Conditions.
           </p>
         </div>
 
@@ -70,12 +109,176 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       {savedSuccess && (
-        <div className="p-4 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-2xl border border-emerald-200">
-          ✓ Company settings and default Terms & Conditions saved successfully!
+        <div className="p-4 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-2xl border border-emerald-200 flex items-center space-x-2">
+          <Check className="w-4 h-4 text-emerald-600" />
+          <span>Company logo, legal profile, and default Terms & Conditions saved successfully!</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* COMPANY BRANDING & LOGO UPLOAD */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2 flex items-center space-x-2">
+            <ImageIcon className="w-4 h-4 text-indigo-600" />
+            <span>Company Logo & Official PDF Branding</span>
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Logo Upload Card */}
+            <div className="md:col-span-1 bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-3">
+              <span className="text-xs font-bold text-slate-700">Company Logo (Printed on Quotation Headers)</span>
+
+              <div className="w-full h-28 bg-white rounded-xl border border-dashed border-slate-300 p-2 flex items-center justify-center relative group overflow-hidden">
+                {formData.logoUrl ? (
+                  <img
+                    src={formData.logoUrl}
+                    alt="Company Logo Preview"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <div className="text-slate-400 flex flex-col items-center space-y-1">
+                    <ImageIcon className="w-8 h-8 opacity-40" />
+                    <span className="text-[10px] font-semibold">No Logo Uploaded</span>
+                  </div>
+                )}
+              </div>
+
+              <input
+                type="file"
+                ref={logoInputRef}
+                accept="image/*"
+                onChange={(e) => handleFileUpload('logoUrl', e)}
+                className="hidden"
+              />
+
+              <div className="flex items-center space-x-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload Logo</span>
+                </button>
+
+                {formData.logoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange('logoUrl', '')}
+                    className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl border border-rose-200"
+                    title="Remove Logo"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400">Supports PNG, JPG, WebP, SVG (Max 3MB)</p>
+            </div>
+
+            {/* Digital Signature Upload Card */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-3">
+              <span className="text-xs font-bold text-slate-700">Authorized Signature</span>
+
+              <div className="w-full h-28 bg-white rounded-xl border border-dashed border-slate-300 p-2 flex items-center justify-center relative overflow-hidden">
+                {formData.digitalSignatureUrl ? (
+                  <img
+                    src={formData.digitalSignatureUrl}
+                    alt="Signature Preview"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <div className="text-slate-400 flex flex-col items-center space-y-1">
+                    <PenTool className="w-8 h-8 opacity-40" />
+                    <span className="text-[10px] font-semibold">No Signature Uploaded</span>
+                  </div>
+                )}
+              </div>
+
+              <input
+                type="file"
+                ref={signatureInputRef}
+                accept="image/*"
+                onChange={(e) => handleFileUpload('digitalSignatureUrl', e)}
+                className="hidden"
+              />
+
+              <div className="flex items-center space-x-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => signatureInputRef.current?.click()}
+                  className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload Signature</span>
+                </button>
+
+                {formData.digitalSignatureUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange('digitalSignatureUrl', '')}
+                    className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl border border-rose-200"
+                    title="Remove Signature"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400">Transparent PNG recommended</p>
+            </div>
+
+            {/* Official Stamp Upload Card */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-3">
+              <span className="text-xs font-bold text-slate-700">Official Company Seal / Stamp</span>
+
+              <div className="w-full h-28 bg-white rounded-xl border border-dashed border-slate-300 p-2 flex items-center justify-center relative overflow-hidden">
+                {formData.companyStampUrl ? (
+                  <img
+                    src={formData.companyStampUrl}
+                    alt="Stamp Preview"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                ) : (
+                  <div className="text-slate-400 flex flex-col items-center space-y-1">
+                    <Stamp className="w-8 h-8 opacity-40" />
+                    <span className="text-[10px] font-semibold">No Stamp Uploaded</span>
+                  </div>
+                )}
+              </div>
+
+              <input
+                type="file"
+                ref={stampInputRef}
+                accept="image/*"
+                onChange={(e) => handleFileUpload('companyStampUrl', e)}
+                className="hidden"
+              />
+
+              <div className="flex items-center space-x-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => stampInputRef.current?.click()}
+                  className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload Seal Stamp</span>
+                </button>
+
+                {formData.companyStampUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange('companyStampUrl', '')}
+                    className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl border border-rose-200"
+                    title="Remove Stamp"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400">Printed on quotation signature footer</p>
+            </div>
+          </div>
+        </div>
+
         {/* Company Identity */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
           <h3 className="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2 flex items-center space-x-2">

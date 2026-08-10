@@ -67,8 +67,8 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
         <div className="flex items-center space-x-3">
           <div className="bg-white px-2 py-1 rounded-lg border border-slate-200 shrink-0">
             <img
-              src="/zipcon_logo.png"
-              alt="Zipcon Logo"
+              src={settings.logoUrl || "/zipcon_logo.png"}
+              alt={settings.companyName || "Company Logo"}
               className="h-8 w-auto object-contain"
             />
           </div>
@@ -152,8 +152,8 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
               <div className="flex items-center space-x-4">
                 <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
                   <img
-                    src="/zipcon_logo.png"
-                    alt="Zipcon Logo"
+                    src={settings.logoUrl || "/zipcon_logo.png"}
+                    alt={settings.companyName || "Company Logo"}
                     className="h-14 w-auto object-contain"
                   />
                 </div>
@@ -211,8 +211,8 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
               <div className="flex items-center space-x-3.5">
                 <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm shrink-0">
                   <img
-                    src="/zipcon_logo.png"
-                    alt="Zipcon Logo"
+                    src={settings.logoUrl || "/zipcon_logo.png"}
+                    alt={settings.companyName || "Company Logo"}
                     className="h-12 max-w-[170px] object-contain"
                   />
                 </div>
@@ -390,15 +390,21 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
             </div>
 
             <div className="text-center relative min-w-[160px]">
-              {quotation.hasCompanyStamp && (
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full border-2 border-[#4338ca]/50 text-[#4338ca]/60 flex items-center justify-center font-black text-[8px] uppercase tracking-wider transform -rotate-12 pointer-events-none">
-                  ZIPCON SEAL
-                </div>
-              )}
-
-              {quotation.digitalSignature ? (
+              {settings.companyStampUrl ? (
                 <img
-                  src={quotation.digitalSignature}
+                  src={settings.companyStampUrl}
+                  alt="Company Stamp"
+                  className="absolute -top-7 left-1/2 -translate-x-1/2 h-14 w-14 object-contain opacity-80 pointer-events-none transform -rotate-12"
+                />
+              ) : quotation.hasCompanyStamp ? (
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full border-2 border-[#4338ca]/50 text-[#4338ca]/60 flex items-center justify-center font-black text-[8px] uppercase tracking-wider transform -rotate-12 pointer-events-none">
+                  OFFICIAL SEAL
+                </div>
+              ) : null}
+
+              {(quotation.digitalSignature || settings.digitalSignatureUrl) ? (
+                <img
+                  src={quotation.digitalSignature || settings.digitalSignatureUrl}
                   alt="Signature"
                   className="h-9 mx-auto object-contain mb-0.5"
                 />

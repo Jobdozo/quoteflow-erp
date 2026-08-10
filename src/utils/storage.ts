@@ -60,10 +60,10 @@ if (typeof window !== 'undefined') {
   }
 }
 
-function getScopedKey(baseKey: string, userId?: string): string {
-  if (!userId) return baseKey;
-  const safeId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `${baseKey}_user_${safeId}`;
+function getScopedKey(baseKey: string, userIdOrEmail?: string): string {
+  if (!userIdOrEmail) return baseKey;
+  const safeId = userIdOrEmail.toLowerCase().trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${baseKey}_tenant_${safeId}`;
 }
 
 function getItem<T>(key: string, defaultValue: T): T {

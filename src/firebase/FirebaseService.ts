@@ -46,11 +46,11 @@ export function cleanObject<T>(obj: T): T {
   return cleaned as T;
 }
 
-// Helper to calculate user-isolated company ID in Firestore
-export function getCompanyDocId(userId?: string): string {
-  if (!userId) return COMPANY_ID;
-  const safeId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `user_${safeId}`;
+// Helper to calculate user/company-isolated tenant ID in Firestore
+export function getCompanyDocId(userOrEmail?: string): string {
+  if (!userOrEmail) return COMPANY_ID;
+  const safeId = userOrEmail.toLowerCase().trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `tenant_${safeId}`;
 }
 
 // ─── Collection & Doc Helpers ──────────────────────────────────────────────

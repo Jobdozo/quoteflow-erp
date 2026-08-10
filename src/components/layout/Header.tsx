@@ -33,6 +33,7 @@ interface HeaderProps {
   products: Product[];
   onSelectQuotation: (q: Quotation) => void;
   onOpenAutoUpdate: () => void;
+  onForceCloudSync?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -45,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   products,
   onSelectQuotation,
   onOpenAutoUpdate,
+  onForceCloudSync,
 }) => {
   const { user, logout } = useFirebaseAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -253,8 +255,11 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center space-x-2.5 sm:space-x-3">
         {/* Offline Sync Engine Indicator */}
         <button
-          onClick={() => SyncService.triggerAutoSync()}
-          title="Click to trigger manual Cloud Sync (SQLite -> PostgreSQL)"
+          onClick={() => {
+            SyncService.triggerAutoSync();
+            if (onForceCloudSync) onForceCloudSync();
+          }}
+          title="Click to trigger manual Cloud Sync across all logged-in devices"
           className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all border ${
             syncStatus.isOnline
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'

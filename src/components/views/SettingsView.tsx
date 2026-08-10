@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import type { CompanySettings } from '../../types';
 
+import { compressImageFile } from '../../utils/imageCompressor';
+
 interface SettingsViewProps {
   settings: CompanySettings;
   onSaveSettings: (settings: CompanySettings) => void;
@@ -40,23 +42,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleFileUpload = (
+  const handleFileUpload = async (
     field: 'logoUrl' | 'digitalSignatureUrl' | 'companyStampUrl',
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 3 * 1024 * 1024) {
-        alert('File size exceeds 3MB. Please select a smaller image file.');
-        return;
+      try {
+        const compressedBase64 = await compressImageFile(file, 400, 400, 0.85);
+        handleChange(field, compressedBase64);
+      } catch (err) {
+        console.error('Image compression error:', err);
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          handleChange(field, event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 

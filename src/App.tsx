@@ -103,6 +103,24 @@ export function App() {
 
     if (!targetUserKey) return;
 
+    // ── INITIAL BOOT: Push existing local data to Firestore Cloud Database ──
+    const localSettings = StorageService.getCompanySettings(targetUserKey);
+    if (localSettings && localSettings.companyName) {
+      FirebaseSettings.save(localSettings, targetUserKey).catch(() => {});
+    }
+    const localQuotations = StorageService.getQuotations(targetUserKey);
+    if (localQuotations && localQuotations.length > 0) {
+      localQuotations.forEach((q) => FirebaseQuotations.save(q, targetUserKey).catch(() => {}));
+    }
+    const localCustomers = StorageService.getCustomers(targetUserKey);
+    if (localCustomers && localCustomers.length > 0) {
+      localCustomers.forEach((c) => FirebaseCustomers.save(c, targetUserKey).catch(() => {}));
+    }
+    const localProducts = StorageService.getProducts(targetUserKey);
+    if (localProducts && localProducts.length > 0) {
+      localProducts.forEach((p) => FirebaseProducts.save(p, targetUserKey).catch(() => {}));
+    }
+
     // ── REAL-TIME FIREBASE FIRESTORE CLOUD SYNC (<200ms Latency Across Devices) ──
     const unsubQuotations = FirebaseQuotations.onSnapshot((cloudQuotations) => {
       if (cloudQuotations) {

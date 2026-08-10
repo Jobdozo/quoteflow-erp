@@ -268,12 +268,12 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <WifiOff className="w-3.5 h-3.5 text-amber-600" />
           )}
-          <span className="hidden md:inline">
+          <span className="text-xs font-bold text-emerald-700">
             {syncStatus.isSyncing
               ? 'Syncing...'
               : syncStatus.isOnline
-              ? 'Cloud Synced'
-              : `Offline Queue (${syncStatus.pendingQueueCount})`}
+              ? '🔥 Firebase Live'
+              : `Offline (${syncStatus.pendingQueueCount})`}
           </span>
         </button>
 

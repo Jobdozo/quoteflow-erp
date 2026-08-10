@@ -144,6 +144,32 @@ export const StorageService = {
     return logs;
   },
 
+  // Direct Cache Setters for Real-Time Firebase Listeners
+  setQuotationsDirect(list: Quotation[], userId?: string): void {
+    setItem(getScopedKey(BASE_KEYS.QUOTATIONS, userId), list);
+  },
+  setInvoicesDirect(list: MonthlyInvoice[], userId?: string): void {
+    setItem(getScopedKey(BASE_KEYS.INVOICES, userId), list);
+  },
+  setCustomersDirect(list: Customer[], userId?: string): void {
+    setItem(getScopedKey(BASE_KEYS.CUSTOMERS, userId), list);
+  },
+  setProductsDirect(list: Product[], userId?: string): void {
+    setItem(getScopedKey(BASE_KEYS.PRODUCTS, userId), list);
+  },
+  setFollowUpsDirect(list: FollowUp[], userId?: string): void {
+    setItem(getScopedKey(BASE_KEYS.FOLLOW_UPS, userId), list);
+  },
+  setSettingsDirect(settings: CompanySettings, userId?: string): void {
+    setItem(getScopedKey(BASE_KEYS.SETTINGS, userId), settings);
+  },
+  setEmailLogsDirect(list: EmailLog[], userId?: string): void {
+    setItem(getScopedKey(BASE_KEYS.EMAIL_LOGS, userId), list);
+  },
+  setAuditLogsDirect(list: AuditLog[], userId?: string): void {
+    setItem(getScopedKey(BASE_KEYS.AUDIT_LOGS, userId), list);
+  },
+
   // Quotations
   getQuotations(userId?: string): Quotation[] {
     return getItem(getScopedKey(BASE_KEYS.QUOTATIONS, userId), []);

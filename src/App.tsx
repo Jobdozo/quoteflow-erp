@@ -103,50 +103,58 @@ export function App() {
 
     // ── REAL-TIME FIREBASE FIRESTORE CLOUD SYNC (<200ms Latency Across Devices) ──
     const unsubQuotations = FirebaseQuotations.onSnapshot((cloudQuotations) => {
-      if (cloudQuotations && cloudQuotations.length > 0) {
+      if (cloudQuotations) {
         setQuotations(cloudQuotations);
+        StorageService.setQuotationsDirect(cloudQuotations, user.uid);
       }
     }, user.uid);
 
     const unsubInvoices = FirebaseInvoices.onSnapshot((cloudInvoices) => {
-      if (cloudInvoices && cloudInvoices.length > 0) {
+      if (cloudInvoices) {
         setInvoices(cloudInvoices);
+        StorageService.setInvoicesDirect(cloudInvoices, user.uid);
       }
     }, user.uid);
 
     const unsubCustomers = FirebaseCustomers.onSnapshot((cloudCustomers) => {
-      if (cloudCustomers && cloudCustomers.length > 0) {
+      if (cloudCustomers) {
         setCustomers(cloudCustomers);
+        StorageService.setCustomersDirect(cloudCustomers, user.uid);
       }
     }, user.uid);
 
     const unsubProducts = FirebaseProducts.onSnapshot((cloudProducts) => {
-      if (cloudProducts && cloudProducts.length > 0) {
+      if (cloudProducts) {
         setProducts(cloudProducts);
+        StorageService.setProductsDirect(cloudProducts, user.uid);
       }
     }, user.uid);
 
     const unsubFollowUps = FirebaseFollowUps.onSnapshot((cloudFollows) => {
-      if (cloudFollows && cloudFollows.length > 0) {
+      if (cloudFollows) {
         setFollowUps(cloudFollows);
+        StorageService.setFollowUpsDirect(cloudFollows, user.uid);
       }
     }, user.uid);
 
     const unsubSettings = FirebaseSettings.onSnapshot((cloudSettings) => {
       if (cloudSettings && cloudSettings.companyName !== undefined) {
         setSettings(cloudSettings);
+        StorageService.setSettingsDirect(cloudSettings, user.uid);
       }
     }, user.uid);
 
     const unsubEmailLogs = FirebaseEmailLogs.onSnapshot((cloudLogs) => {
-      if (cloudLogs && cloudLogs.length > 0) {
+      if (cloudLogs) {
         setEmailLogs(cloudLogs);
+        StorageService.setEmailLogsDirect(cloudLogs, user.uid);
       }
     }, user.uid);
 
     const unsubAudit = FirebaseAudit.onSnapshot((cloudAudit) => {
-      if (cloudAudit && cloudAudit.length > 0) {
+      if (cloudAudit) {
         setAuditLogs(cloudAudit);
+        StorageService.setAuditLogsDirect(cloudAudit, user.uid);
       }
     }, user.uid);
 

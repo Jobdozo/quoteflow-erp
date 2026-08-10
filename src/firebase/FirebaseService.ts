@@ -11,9 +11,7 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  orderBy,
   onSnapshot,
-  writeBatch,
   limit,
 } from 'firebase/firestore';
 import { db, COMPANY_ID } from './config';
@@ -31,6 +29,22 @@ import type {
   QuotationStatus,
   AuditLog,
 } from '../types';
+
+// Helper to sanitize objects for Firestore (removes undefined fields which cause Firestore write failures)
+export function cleanObject<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) {
+    return obj.map((item) => cleanObject(item)) as unknown as T;
+  }
+  const cleaned: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      cleaned[key] = cleanObject(value);
+    }
+  }
+  return cleaned as T;
+}
 
 // Helper to calculate user-isolated company ID in Firestore
 export function getCompanyDocId(userId?: string): string {
@@ -50,7 +64,7 @@ const docRef = (name: string, id: string, userId?: string) =>
 export const FirebaseQuotations = {
   async getAll(userId?: string): Promise<Quotation[]> {
     try {
-      const snap = await getDocs(query(col('quotations', userId), orderBy('createdAt', 'desc')));
+      const snap = await getDocs(col('quotations', userId));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Quotation));
     } catch (e) {
       console.warn('FirebaseQuotations.getAll offline fallback:', e);
@@ -61,10 +75,11 @@ export const FirebaseQuotations = {
   async save(quotation: Quotation, userId?: string): Promise<void> {
     try {
       const ref = docRef('quotations', quotation.id, userId);
-      await setDoc(ref, { ...quotation, updatedAt: new Date().toISOString() }, { merge: true });
+      const cleanedData = cleanObject({ ...quotation, updatedAt: new Date().toISOString() });
+      await setDoc(ref, cleanedData, { merge: true });
       await FirebaseAudit.log('Save Quotation', 'Quotations', quotation.quotationNumber, userId);
     } catch (e) {
-      console.warn('FirebaseQuotations.save error:', e);
+      console.error('FirebaseQuotations.save error:', e);
     }
   },
 
@@ -75,7 +90,7 @@ export const FirebaseQuotations = {
         updatedAt: new Date().toISOString(),
       });
     } catch (e) {
-      console.warn('FirebaseQuotations.updateStatus error:', e);
+      console.error('FirebaseQuotations.updateStatus error:', e);
     }
   },
 
@@ -84,7 +99,7 @@ export const FirebaseQuotations = {
       await deleteDoc(docRef('quotations', id, userId));
       await FirebaseAudit.log('Delete Quotation', 'Quotations', id, userId);
     } catch (e) {
-      console.warn('FirebaseQuotations.delete error:', e);
+      console.error('FirebaseQuotations.delete error:', e);
     }
   },
 
@@ -92,7 +107,7 @@ export const FirebaseQuotations = {
   onSnapshot(callback: (quotations: Quotation[]) => void, userId?: string) {
     try {
       return onSnapshot(
-        query(col('quotations', userId)),
+        col('quotations', userId),
         (snap) => {
           const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Quotation));
           callback(list);
@@ -109,7 +124,7 @@ export const FirebaseQuotations = {
 export const FirebaseInvoices = {
   async getAll(userId?: string): Promise<MonthlyInvoice[]> {
     try {
-      const snap = await getDocs(query(col('invoices', userId), orderBy('createdAt', 'desc')));
+      const snap = await getDocs(col('invoices', userId));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() } as MonthlyInvoice));
     } catch (e) {
       return [];
@@ -119,10 +134,11 @@ export const FirebaseInvoices = {
   async save(invoice: MonthlyInvoice, userId?: string): Promise<void> {
     try {
       const ref = docRef('invoices', invoice.id, userId);
-      await setDoc(ref, invoice, { merge: true });
+      const cleaned = cleanObject(invoice);
+      await setDoc(ref, cleaned, { merge: true });
       await FirebaseAudit.log('Save Invoice', 'Billing', invoice.invoiceNumber, userId);
     } catch (e) {
-      console.warn('FirebaseInvoices.save error:', e);
+      console.error('FirebaseInvoices.save error:', e);
     }
   },
 
@@ -138,17 +154,18 @@ export const FirebaseInvoices = {
       const paidAmount = updatedPayments.reduce((sum, p) => sum + p.amountPaid, 0);
       const balanceDue = invoice.totalAmount - paidAmount;
       const status = balanceDue <= 0 ? 'Paid' : paidAmount > 0 ? 'Partially Paid' : invoice.status;
-      await updateDoc(ref, { payments: updatedPayments, paidAmount, balanceDue, status });
+      const cleanedPayments = cleanObject(updatedPayments);
+      await updateDoc(ref, { payments: cleanedPayments, paidAmount, balanceDue, status });
       await FirebaseAudit.log('Record Payment', 'Billing', `₹${payment.amountPaid}`, userId);
     } catch (e) {
-      console.warn('FirebaseInvoices.recordPayment error:', e);
+      console.error('FirebaseInvoices.recordPayment error:', e);
     }
   },
 
   onSnapshot(callback: (invoices: MonthlyInvoice[]) => void, userId?: string) {
     try {
       return onSnapshot(
-        query(col('invoices', userId)),
+        col('invoices', userId),
         (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as MonthlyInvoice))),
         (err) => console.warn('FirebaseInvoices listener warning:', err)
       );
@@ -162,7 +179,7 @@ export const FirebaseInvoices = {
 export const FirebaseCustomers = {
   async getAll(userId?: string): Promise<Customer[]> {
     try {
-      const snap = await getDocs(query(col('customers', userId)));
+      const snap = await getDocs(col('customers', userId));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Customer));
     } catch (e) {
       return [];
@@ -172,10 +189,11 @@ export const FirebaseCustomers = {
   async save(customer: Customer, userId?: string): Promise<void> {
     try {
       const ref = docRef('customers', customer.id, userId);
-      await setDoc(ref, { ...customer, updatedAt: new Date().toISOString() }, { merge: true });
+      const cleaned = cleanObject({ ...customer, updatedAt: new Date().toISOString() });
+      await setDoc(ref, cleaned, { merge: true });
       await FirebaseAudit.log('Save Customer', 'CRM', customer.companyName, userId);
     } catch (e) {
-      console.warn('FirebaseCustomers.save error:', e);
+      console.error('FirebaseCustomers.save error:', e);
     }
   },
 
@@ -183,14 +201,14 @@ export const FirebaseCustomers = {
     try {
       await deleteDoc(docRef('customers', id, userId));
     } catch (e) {
-      console.warn('FirebaseCustomers.delete error:', e);
+      console.error('FirebaseCustomers.delete error:', e);
     }
   },
 
   onSnapshot(callback: (customers: Customer[]) => void, userId?: string) {
     try {
       return onSnapshot(
-        query(col('customers', userId)),
+        col('customers', userId),
         (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Customer))),
         (err) => console.warn('FirebaseCustomers listener warning:', err)
       );
@@ -213,9 +231,10 @@ export const FirebaseProducts = {
 
   async save(product: Product, userId?: string): Promise<void> {
     try {
-      await setDoc(docRef('products', product.id, userId), product, { merge: true });
+      const cleaned = cleanObject(product);
+      await setDoc(docRef('products', product.id, userId), cleaned, { merge: true });
     } catch (e) {
-      console.warn('FirebaseProducts.save error:', e);
+      console.error('FirebaseProducts.save error:', e);
     }
   },
 
@@ -223,7 +242,7 @@ export const FirebaseProducts = {
     try {
       await deleteDoc(docRef('products', id, userId));
     } catch (e) {
-      console.warn('FirebaseProducts.delete error:', e);
+      console.error('FirebaseProducts.delete error:', e);
     }
   },
 
@@ -244,7 +263,7 @@ export const FirebaseProducts = {
 export const FirebaseFollowUps = {
   async getAll(userId?: string): Promise<FollowUp[]> {
     try {
-      const snap = await getDocs(query(col('followups', userId)));
+      const snap = await getDocs(col('followups', userId));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FollowUp));
     } catch (e) {
       return [];
@@ -253,9 +272,10 @@ export const FirebaseFollowUps = {
 
   async save(followUp: FollowUp, userId?: string): Promise<void> {
     try {
-      await setDoc(docRef('followups', followUp.id, userId), followUp, { merge: true });
+      const cleaned = cleanObject(followUp);
+      await setDoc(docRef('followups', followUp.id, userId), cleaned, { merge: true });
     } catch (e) {
-      console.warn('FirebaseFollowUps.save error:', e);
+      console.error('FirebaseFollowUps.save error:', e);
     }
   },
 
@@ -263,14 +283,14 @@ export const FirebaseFollowUps = {
     try {
       await deleteDoc(docRef('followups', id, userId));
     } catch (e) {
-      console.warn('FirebaseFollowUps.delete error:', e);
+      console.error('FirebaseFollowUps.delete error:', e);
     }
   },
 
   onSnapshot(callback: (followUps: FollowUp[]) => void, userId?: string) {
     try {
       return onSnapshot(
-        query(col('followups', userId)),
+        col('followups', userId),
         (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as FollowUp))),
         (err) => console.warn('FirebaseFollowUps listener warning:', err)
       );
@@ -293,14 +313,11 @@ export const FirebaseSettings = {
 
   async save(settings: CompanySettings, userId?: string): Promise<void> {
     try {
-      await setDoc(
-        doc(db, 'companies', getCompanyDocId(userId)),
-        { ...settings, updatedAt: new Date().toISOString() },
-        { merge: true }
-      );
+      const cleaned = cleanObject({ ...settings, updatedAt: new Date().toISOString() });
+      await setDoc(doc(db, 'companies', getCompanyDocId(userId)), cleaned, { merge: true });
       await FirebaseAudit.log('Update Settings', 'Settings', 'Company settings updated', userId);
     } catch (e) {
-      console.warn('FirebaseSettings.save error:', e);
+      console.error('FirebaseSettings.save error:', e);
     }
   },
 
@@ -319,7 +336,7 @@ export const FirebaseSettings = {
 export const FirebaseEmailLogs = {
   async getAll(userId?: string): Promise<EmailLog[]> {
     try {
-      const snap = await getDocs(query(col('email_logs', userId)));
+      const snap = await getDocs(col('email_logs', userId));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() } as EmailLog));
     } catch (e) {
       return [];
@@ -328,16 +345,17 @@ export const FirebaseEmailLogs = {
 
   async add(log: EmailLog, userId?: string): Promise<void> {
     try {
-      await setDoc(docRef('email_logs', log.id, userId), log);
+      const cleaned = cleanObject(log);
+      await setDoc(docRef('email_logs', log.id, userId), cleaned);
     } catch (e) {
-      console.warn('FirebaseEmailLogs.add error:', e);
+      console.error('FirebaseEmailLogs.add error:', e);
     }
   },
 
   onSnapshot(callback: (logs: EmailLog[]) => void, userId?: string) {
     try {
       return onSnapshot(
-        query(col('email_logs', userId)),
+        col('email_logs', userId),
         (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as EmailLog))),
         (err) => console.warn('FirebaseEmailLogs listener warning:', err)
       );
@@ -360,9 +378,10 @@ export const FirebaseTeam = {
 
   async save(member: TeamMember, userId?: string): Promise<void> {
     try {
-      await setDoc(docRef('team_members', member.id, userId), member, { merge: true });
+      const cleaned = cleanObject(member);
+      await setDoc(docRef('team_members', member.id, userId), cleaned, { merge: true });
     } catch (e) {
-      console.warn('FirebaseTeam.save error:', e);
+      console.error('FirebaseTeam.save error:', e);
     }
   },
 };
@@ -380,9 +399,10 @@ export const FirebaseTemplates = {
 
   async save(template: ProposalTemplate, userId?: string): Promise<void> {
     try {
-      await setDoc(docRef('templates', template.id, userId), template, { merge: true });
+      const cleaned = cleanObject(template);
+      await setDoc(docRef('templates', template.id, userId), cleaned, { merge: true });
     } catch (e) {
-      console.warn('FirebaseTemplates.save error:', e);
+      console.error('FirebaseTemplates.save error:', e);
     }
   },
 };
@@ -392,14 +412,15 @@ export const FirebaseAudit = {
   async log(action: string, module: string, detail?: string, userId?: string): Promise<void> {
     try {
       const logId = `log-${Date.now()}`;
-      await setDoc(docRef('audit_logs', logId, userId), {
+      const logObj: AuditLog = {
         id: logId,
         action: detail ? `${action}: ${detail}` : action,
         module,
         user: userId || 'Authenticated User',
         timestamp: new Date().toISOString(),
         ipAddress: 'cloud',
-      } as AuditLog);
+      };
+      await setDoc(docRef('audit_logs', logId, userId), cleanObject(logObj));
     } catch (_) {}
   },
 

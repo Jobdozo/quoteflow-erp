@@ -40,6 +40,11 @@ import {
   FirebaseEmailLogs,
   FirebaseAudit,
 } from './firebase/FirebaseService';
+import {
+  RealtimeDbQuotations,
+  RealtimeDbSettings,
+  RealtimeDbCustomers,
+} from './firebase/RealtimeDbService';
 import type {
   Quotation,
   MonthlyInvoice,
@@ -178,6 +183,21 @@ export function App() {
       }
     }, targetUserKey);
 
+    // ── FIREBASE REALTIME DATABASE WEBSOCKET SYNC (<50ms Latency Across Devices) ──
+    const unsubRtdbQuotations = RealtimeDbQuotations.onValue((rtdbQuotations) => {
+      if (rtdbQuotations && rtdbQuotations.length > 0) {
+        setQuotations(rtdbQuotations);
+        StorageService.setQuotationsDirect(rtdbQuotations, targetUserKey);
+      }
+    }, targetUserKey);
+
+    const unsubRtdbSettings = RealtimeDbSettings.onValue((rtdbSettings) => {
+      if (rtdbSettings && rtdbSettings.companyName) {
+        setSettings(rtdbSettings);
+        StorageService.setSettingsDirect(rtdbSettings, targetUserKey);
+      }
+    }, targetUserKey);
+
     return () => {
       unsubQuotations();
       unsubInvoices();
@@ -187,6 +207,8 @@ export function App() {
       unsubSettings();
       unsubEmailLogs();
       unsubAudit();
+      unsubRtdbQuotations();
+      unsubRtdbSettings();
     };
   }, [targetUserKey]);
 

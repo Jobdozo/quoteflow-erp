@@ -26,6 +26,11 @@ import {
   FirebaseEmailLogs,
   FirebaseAudit,
 } from '../firebase/FirebaseService';
+import {
+  RealtimeDbQuotations,
+  RealtimeDbSettings,
+  RealtimeDbCustomers,
+} from '../firebase/RealtimeDbService';
 
 const BASE_KEYS = {
   QUOTATIONS: 'quoteflow_quotations',
@@ -187,8 +192,9 @@ export const StorageService = {
     }
     setItem(key, list);
 
-    // Sync to Firebase Cloud Database
+    // Sync to Firebase Cloud Database (Firestore + Realtime Database)
     FirebaseQuotations.save(updatedQuotation, userId).catch(() => {});
+    RealtimeDbQuotations.save(updatedQuotation, userId).catch(() => {});
 
     this.addAuditLog(
       `${existingIndex >= 0 ? 'Updated' : 'Created'} Quotation ${quotation.quotationNumber} (${quotation.companyName})`,
@@ -206,6 +212,7 @@ export const StorageService = {
 
     // Sync to Firebase Cloud Database
     FirebaseQuotations.delete(id, userId).catch(() => {});
+    RealtimeDbQuotations.delete(id, userId).catch(() => {});
 
     if (q) {
       this.addAuditLog(`Deleted Quotation ${q.quotationNumber}`, 'Quotations CRM', userId);
@@ -446,8 +453,9 @@ export const StorageService = {
     const key = getScopedKey(BASE_KEYS.SETTINGS, userId);
     setItem(key, settings);
 
-    // Sync to Firebase Cloud Database
+    // Sync to Firebase Cloud Database (Firestore + Realtime Database)
     FirebaseSettings.save(settings, userId).catch(() => {});
+    RealtimeDbSettings.save(settings, userId).catch(() => {});
 
     this.addAuditLog(`Updated Company Settings & Bank Credentials`, 'Settings', userId);
     return settings;

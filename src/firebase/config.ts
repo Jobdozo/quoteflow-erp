@@ -1,9 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Firebase Configuration — QuoteFlow ERP
-// Project: quoteflow-efec3 | Cloud SQL: us-east4 (Northern Virginia)
+// Project: quoteflow-efec3 | Realtime DB: quoteflow-efec3-default-rtdb
 // ─────────────────────────────────────────────────────────────────────────
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getDatabase } from 'firebase/database';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics, isSupported } from 'firebase/analytics';
@@ -15,13 +16,15 @@ const firebaseConfig = {
   storageBucket: "quoteflow-efec3.firebasestorage.app",
   messagingSenderId: "306718996330",
   appId: "1:306718996330:web:6254b6d551810cd7ce1713",
-  measurementId: "G-KEPWJ8E33B"
+  measurementId: "G-KEPWJ8E33B",
+  databaseURL: "https://quoteflow-efec3-default-rtdb.firebaseio.com"
 };
 
 // Initialize Firebase safely
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const db        = getFirestore(app);
+export const rtdb      = getDatabase(app);
 export const auth      = getAuth(app);
 export const storage   = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();

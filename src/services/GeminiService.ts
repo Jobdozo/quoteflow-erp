@@ -1,8 +1,19 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Google Gemini AI Service — QuoteFlow ERP
-// Powered by Google Gemini AI Engine
+// Powered by Google Gemini AI Engine with Multimodal Vision OCR
 // ─────────────────────────────────────────────────────────────────────────
 import type { Quotation } from '../types';
+
+export interface ScannedCardData {
+  companyName: string;
+  name: string;
+  contactPerson: string;
+  mobile: string;
+  email: string;
+  gstNumber: string;
+  address: string;
+  notes: string;
+}
 
 // Runtime API key accessor (decodes at runtime to prevent git secret scanner block)
 const getGeminiApiKey = (): string => {
@@ -48,6 +59,74 @@ ${contextData ? `Active ERP Context:\n${contextData}\n` : ''}`;
   } catch (err: any) {
     console.warn('Gemini AI fallback:', err);
     return `QuoteFlow AI Assistant Response:\n\nBased on your quotation data, we recommend following up with high-value accounts (above ₹1,00,000) within 48 hours to accelerate deal closing.`;
+  }
+}
+
+export async function scanVisitingCardWithGemini(
+  imageBase64: string,
+  mimeType: string = 'image/jpeg'
+): Promise<ScannedCardData> {
+  const cleanBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+  const apiKey = getGeminiApiKey();
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
+
+  const prompt = `You are a high-precision OCR AI. Analyze this business card / visiting card image and extract all contact details.
+Return ONLY a valid raw JSON object without markdown fences, code blocks, or preamble.
+JSON keys must match:
+{
+  "companyName": "Company or Business Name",
+  "name": "Full Person Name",
+  "contactPerson": "Designation or Person Name",
+  "mobile": "Mobile / Phone Number with country code if available",
+  "email": "Email address",
+  "gstNumber": "GSTIN number if present",
+  "address": "Full street address, city, state, pincode",
+  "notes": "Tagline, services, website URL or extra details"
+}`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: cleanBase64,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini Vision API HTTP Error ${response.status}`);
+    }
+
+    const json = await response.json();
+    const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cleanJsonText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    const parsed = JSON.parse(cleanJsonText);
+    return {
+      companyName: parsed.companyName || '',
+      name: parsed.name || parsed.contactPerson || '',
+      contactPerson: parsed.contactPerson || parsed.name || '',
+      mobile: parsed.mobile || '',
+      email: parsed.email || '',
+      gstNumber: parsed.gstNumber || '',
+      address: parsed.address || '',
+      notes: parsed.notes || '',
+    };
+  } catch (err) {
+    console.error('Gemini Vision Card Scan error:', err);
+    throw err;
   }
 }
 

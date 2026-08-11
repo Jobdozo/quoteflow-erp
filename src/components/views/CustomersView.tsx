@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Users, Plus, Search, Building2, Phone, Mail, FileText, Edit, MapPin, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Users, Plus, Search, Building2, Phone, Mail, FileText, Edit, MapPin, X, Camera, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import { Customer } from '../../types';
+import { scanVisitingCardWithGemini } from '../../services/GeminiService';
 
 interface CustomersViewProps {
   customers: Customer[];
@@ -22,6 +23,12 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
 
+  // AI Card Scanning State
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
   const openAddModal = () => {
     setEditingCustomer(null);
     setName('');
@@ -32,8 +39,59 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
     setContactPerson('');
     setAddress('');
     setNotes('');
+    setScanSuccess(false);
+    setScanError(null);
     setShowModal(true);
   };
+
+  const handleTriggerCardScan = () => {
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
+      cameraInputRef.current.click();
+    }
+  };
+
+  const handleCardCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!showModal) {
+      openAddModal();
+    }
+
+    setIsScanning(true);
+    setScanSuccess(false);
+    setScanError(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      if (event.target?.result) {
+        const base64Data = event.target.result as string;
+        try {
+          const scanned = await scanVisitingCardWithGemini(base64Data, file.type);
+          if (scanned.companyName) setCompanyName(scanned.companyName);
+          if (scanned.name) setName(scanned.name);
+          if (scanned.contactPerson) setContactPerson(scanned.contactPerson);
+          if (scanned.mobile) setMobile(scanned.mobile);
+          if (scanned.email) setEmail(scanned.email);
+          if (scanned.gstNumber) setGstNumber(scanned.gstNumber);
+          if (scanned.address) setAddress(scanned.address);
+          if (scanned.notes) setNotes(scanned.notes);
+
+          setScanSuccess(true);
+          setTimeout(() => setScanSuccess(false), 5000);
+        } catch (err: any) {
+          console.error('Card scan error:', err);
+          setScanError('Failed to extract card details. Please fill manually or try a clearer photo.');
+        } finally {
+          setIsScanning(false);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+
 
   const openEditModal = (c: Customer) => {
     setEditingCustomer(c);
@@ -85,13 +143,35 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 flex items-center space-x-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Customer</span>
-        </button>
+        {/* Hidden Camera / File Input for Mobile Visiting Card Capture */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleCardCapture}
+          className="hidden"
+        />
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleTriggerCardScan}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-md flex items-center space-x-1.5 transition-all"
+            title="Take a photo of a business card to auto-fill customer details"
+          >
+            <Camera className="w-4 h-4 text-purple-200" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+            <span>Scan Visiting Card (AI OCR)</span>
+          </button>
+
+          <button
+            onClick={openAddModal}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 flex items-center space-x-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Customer</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -171,16 +251,58 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-6 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-900">
-                {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">
+                  {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
+                </h3>
+                <p className="text-[11px] text-slate-500">Auto-fill details using camera or manual entry</p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleTriggerCardScan}
+                  disabled={isScanning}
+                  className="bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-[11px] px-3 py-1.5 rounded-xl border border-purple-200 flex items-center space-x-1 transition-all"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Scan Card</span>
+                </button>
+
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
+
+            {/* AI Scanning Status Banners */}
+            {isScanning && (
+              <div className="mt-3 p-3 bg-slate-900 text-purple-100 rounded-2xl border border-purple-500/50 flex items-center space-x-3 text-xs animate-pulse">
+                <Loader2 className="w-5 h-5 text-amber-300 animate-spin shrink-0" />
+                <div>
+                  <p className="font-extrabold text-white flex items-center gap-1">
+                    <span>⚡ Gemini Vision AI Scanning Business Card...</span>
+                  </p>
+                  <p className="text-[10px] text-purple-300">Extracting company, contact name, mobile, email & GSTIN</p>
+                </div>
+              </div>
+            )}
+
+            {scanSuccess && (
+              <div className="mt-3 p-3 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-200 flex items-center space-x-2 text-xs">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-semibold">✅ Card scanned successfully! Form fields auto-populated by AI.</span>
+              </div>
+            )}
+
+            {scanError && (
+              <div className="mt-3 p-3 bg-rose-50 text-rose-800 rounded-2xl border border-rose-200 text-xs font-medium">
+                {scanError}
+              </div>
+            )}
 
             <form onSubmit={handleSave} className="mt-4 space-y-3 text-xs">
               <div>

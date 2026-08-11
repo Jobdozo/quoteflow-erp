@@ -288,6 +288,21 @@ export const StorageService = {
     }
     return list;
   },
+  deleteInvoice(id: string, userId?: string): MonthlyInvoice[] {
+    const key = getScopedKey(BASE_KEYS.INVOICES, userId);
+    const list = getItem<MonthlyInvoice[]>(key, []);
+    const inv = list.find((item) => item.id === id);
+    const updated = list.filter((item) => item.id !== id);
+    setItem(key, updated);
+
+    // Sync to Firebase Cloud Database
+    FirebaseInvoices.delete(id, userId).catch(() => {});
+
+    if (inv) {
+      this.addAuditLog(`Deleted Invoice ${inv.invoiceNumber}`, 'Monthly Billing', userId);
+    }
+    return updated;
+  },
 
   // Customers CRM
   getCustomers(userId?: string): Customer[] {

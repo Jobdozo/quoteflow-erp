@@ -311,9 +311,27 @@ export function App() {
     refreshAllState(targetUserKey);
   };
 
+  const handleDeleteCustomer = (id: string) => {
+    StorageService.deleteCustomer(id, targetUserKey);
+    SyncService.enqueueOfflineAction('Delete Customer');
+    refreshAllState(targetUserKey);
+  };
+
+  const handleDeleteInvoice = (id: string) => {
+    StorageService.deleteInvoice(id, targetUserKey);
+    SyncService.enqueueOfflineAction('Delete Invoice');
+    refreshAllState(targetUserKey);
+  };
+
   const handleSaveProduct = (product: Product) => {
     StorageService.saveProduct(product, targetUserKey);
     SyncService.enqueueOfflineAction('Save Product');
+    refreshAllState(targetUserKey);
+  };
+
+  const handleDeleteProduct = (id: string) => {
+    StorageService.deleteProduct(id, targetUserKey);
+    SyncService.enqueueOfflineAction('Delete Product');
     refreshAllState(targetUserKey);
   };
 
@@ -561,6 +579,7 @@ export function App() {
                 customers={customers}
                 onSaveInvoice={handleSaveInvoice}
                 onRecordPayment={handleRecordPayment}
+                onDeleteInvoice={handleDeleteInvoice}
               />
             ) : <ZeroTrustAccessDenied role={userRole} required="Accountant or Admin" />
           )}
@@ -582,6 +601,7 @@ export function App() {
             <CustomersView
               customers={customers}
               onSaveCustomer={handleSaveCustomer}
+              onDeleteCustomer={handleDeleteCustomer}
             />
           )}
 
@@ -589,6 +609,7 @@ export function App() {
             <ProductsView
               products={products}
               onSaveProduct={handleSaveProduct}
+              onDeleteProduct={handleDeleteProduct}
             />
           )}
 

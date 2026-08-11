@@ -10,6 +10,7 @@ import {
   Clock,
   Eye,
   FileText,
+  Trash2,
   X,
   Send,
   Building2,
@@ -22,6 +23,7 @@ interface MonthlyBillingViewProps {
   customers: Customer[];
   onSaveInvoice: (invoice: MonthlyInvoice) => void;
   onRecordPayment: (invoiceId: string, payment: Omit<PaymentRecord, 'id'>) => void;
+  onDeleteInvoice?: (id: string) => void;
 }
 
 export const MonthlyBillingView: React.FC<MonthlyBillingViewProps> = ({
@@ -30,6 +32,7 @@ export const MonthlyBillingView: React.FC<MonthlyBillingViewProps> = ({
   customers,
   onSaveInvoice,
   onRecordPayment,
+  onDeleteInvoice,
 }) => {
   const [activeTab, setActiveTab] = useState<string>('All');
   const [search, setSearch] = useState('');
@@ -288,19 +291,34 @@ export const MonthlyBillingView: React.FC<MonthlyBillingViewProps> = ({
                     </span>
                   </td>
                   <td className="py-3.5 px-4 text-center">
-                    {inv.balanceDue > 0 ? (
-                      <button
-                        onClick={() => handleOpenPaymentModal(inv)}
-                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-md transition-colors"
-                      >
-                        Record Payment
-                      </button>
-                    ) : (
-                      <span className="text-xs text-emerald-600 font-bold flex items-center justify-center space-x-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Cleared</span>
-                      </span>
-                    )}
+                    <div className="flex items-center justify-center space-x-1">
+                      {inv.balanceDue > 0 ? (
+                        <button
+                          onClick={() => handleOpenPaymentModal(inv)}
+                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-md transition-colors"
+                        >
+                          Record Payment
+                        </button>
+                      ) : (
+                        <span className="text-xs text-emerald-600 font-bold flex items-center justify-center space-x-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Cleared</span>
+                        </span>
+                      )}
+                      {onDeleteInvoice && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to delete invoice '${inv.invoiceNumber}'?`)) {
+                              onDeleteInvoice(inv.id);
+                            }
+                          }}
+                          title="Delete Invoice"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg ml-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

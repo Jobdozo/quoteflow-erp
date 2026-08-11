@@ -162,6 +162,15 @@ export const FirebaseInvoices = {
     }
   },
 
+  async delete(id: string, userId?: string): Promise<void> {
+    try {
+      await deleteDoc(docRef('invoices', id, userId));
+      await FirebaseAudit.log('Delete Invoice', 'Billing', id, userId);
+    } catch (e) {
+      console.error('FirebaseInvoices.delete error:', e);
+    }
+  },
+
   onSnapshot(callback: (invoices: MonthlyInvoice[]) => void, userId?: string) {
     try {
       return onSnapshot(

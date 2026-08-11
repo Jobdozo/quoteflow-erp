@@ -1,14 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { Users, Plus, Search, Building2, Phone, Mail, FileText, Edit, MapPin, X, Camera, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { Users, Plus, Search, Building2, Phone, Mail, FileText, Edit, Trash2, MapPin, X, Camera, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import { Customer } from '../../types';
 import { scanVisitingCardWithGemini } from '../../services/GeminiService';
 
 interface CustomersViewProps {
   customers: Customer[];
   onSaveCustomer: (customer: Customer) => void;
+  onDeleteCustomer?: (id: string) => void;
 }
 
-export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveCustomer }) => {
+export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveCustomer, onDeleteCustomer }) => {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -214,12 +215,28 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
                     <p className="text-xs text-indigo-600 font-semibold">{c.contactPerson}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => openEditModal(c)}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => openEditModal(c)}
+                    title="Edit Customer Details"
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  {onDeleteCustomer && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete customer account '${c.companyName}'?`)) {
+                          onDeleteCustomer(c.id);
+                        }
+                      }}
+                      title="Delete Customer Account"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 space-y-2 text-xs text-slate-600 border-t border-slate-100 pt-3">

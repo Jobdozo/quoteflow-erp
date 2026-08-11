@@ -5,9 +5,10 @@ import { Product } from '../../types';
 interface ProductsViewProps {
   products: Product[];
   onSaveProduct: (product: Product) => void;
+  onDeleteProduct?: (id: string) => void;
 }
 
-export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProduct }) => {
+export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProduct, onDeleteProduct }) => {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [showModal, setShowModal] = useState(false);
@@ -143,12 +144,28 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
                     </span>
                     <h3 className="font-bold text-slate-900 text-sm mt-1.5">{p.name}</h3>
                   </div>
+                <div className="flex items-center space-x-1">
                   <button
                     onClick={() => openEditModal(p)}
+                    title="Edit Product / Service"
                     className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
+                  {onDeleteProduct && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete product item '${p.name}'?`)) {
+                          onDeleteProduct(p.id);
+                        }
+                      }}
+                      title="Delete Product / Service"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
                 </div>
 
                 <p className="text-xs text-slate-500 mt-2 line-clamp-2">{p.description}</p>

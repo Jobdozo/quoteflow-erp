@@ -1,308 +1,196 @@
-import React, { useRef, useState } from 'react';
-import { Download, Printer, Shield, X, FileText, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Download, Printer, ArrowLeft, Send, Shield, Sparkles, Building, Mail, Phone, MapPin } from 'lucide-react';
 import type { Quotation, CompanySettings } from '../../types';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface PDFDocumentViewProps {
   quotation: Quotation;
   settings: CompanySettings;
-  onClose: () => void;
+  onBack?: () => void;
+  onClose?: () => void;
+  onSendWhatsApp?: (quotation: Quotation) => void;
+  onSendEmail?: (quotation: Quotation) => void;
 }
 
 export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
   quotation,
   settings,
+  onBack,
   onClose,
+  onSendWhatsApp,
+  onSendEmail,
 }) => {
-  const documentRef = useRef<HTMLDivElement | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [includeCoverPage, setIncludeCoverPage] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(100);
-
-  const handleDownloadPDF = async () => {
-    if (!documentRef.current) return;
-    setIsGenerating(true);
-
-    try {
-      const element = documentRef.current;
-      const pages = element.querySelectorAll<HTMLElement>('.a4-page');
-
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        const canvas = await html2canvas(page, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          allowTaint: true,
-        });
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-      }
-
-      pdf.save(`${quotation.quotationNumber}_${quotation.companyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
-    } catch (err) {
-      console.error('Error generating PDF:', err);
-      window.print();
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const handlePrint = () => {
-    window.print();
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrinting(false);
+    }, 300);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#020617]/85 backdrop-blur-md flex flex-col items-center justify-start overflow-y-auto font-sans">
-      {/* Top Floating Control Bar */}
-      <div className="w-full bg-[#0f172a] border-b border-[#334155] text-white p-3.5 sticky top-0 z-50 shadow-2xl flex flex-wrap items-center justify-between gap-3 px-4 sm:px-8">
+    <div className="min-h-screen bg-slate-900/90 py-6 px-2 sm:px-6 flex flex-col items-center">
+      {/* Control Action Toolbar */}
+      <div className="no-print max-w-[210mm] w-full bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl mb-6 flex flex-wrap items-center justify-between gap-3 text-white">
         <div className="flex items-center space-x-3">
-          <div className="bg-white px-2 py-1 rounded-lg border border-slate-200 shrink-0">
-            <img
-              src={settings.logoUrl || "/zipcon_logo.png"}
-              alt={settings.companyName || "Company Logo"}
-              className="h-8 w-auto object-contain"
-            />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm text-white flex items-center space-x-2">
-              <span>{quotation.quotationNumber}</span>
-              <span className="text-xs text-[#818cf8] font-semibold">• {quotation.companyName}</span>
-            </h3>
-            <p className="text-[11px] text-[#94a3b8]">Official Zipcon™ Commercial Quotation PDF</p>
+          {(onBack || onClose) && (
+            <button
+              onClick={onBack || onClose}
+              className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-xl transition-colors flex items-center space-x-1 text-xs font-semibold"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back / Close</span>
+            </button>
+          )}
+          <div className="h-4 w-[1px] bg-slate-700 hidden sm:block" />
+          <div className="flex items-center space-x-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <h2 className="text-sm font-bold text-slate-100">
+              PDF Document Viewer ({quotation.quotationNumber})
+            </h2>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center flex-wrap gap-3">
-          <label className="flex items-center space-x-2 bg-[#1e293b] hover:bg-[#334155] px-3 py-1.5 rounded-xl cursor-pointer text-xs font-semibold text-slate-200 border border-[#334155] transition-colors">
-            <input
-              type="checkbox"
-              checked={includeCoverPage}
-              onChange={(e) => setIncludeCoverPage(e.target.checked)}
-              className="rounded text-[#4f46e5] focus:ring-0 w-3.5 h-3.5"
-            />
-            <span>Include Cover Page</span>
-          </label>
+        <div className="flex flex-wrap items-center gap-2">
+          {onSendEmail && (
+            <button
+              onClick={() => onSendEmail(quotation)}
+              className="bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center space-x-1.5 transition-all"
+            >
+              <Mail className="w-3.5 h-3.5 text-blue-400" />
+              <span>Email PDF</span>
+            </button>
+          )}
 
-          {/* Zoom Selector */}
-          <div className="hidden sm:flex items-center bg-[#1e293b] border border-[#334155] rounded-xl px-2 py-1 text-xs font-medium text-slate-300">
+          {onSendWhatsApp && (
             <button
-              onClick={() => setZoomLevel(Math.max(70, zoomLevel - 10))}
-              className="px-1.5 py-0.5 hover:text-white font-bold"
+              onClick={() => onSendWhatsApp(quotation)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center space-x-1.5 shadow-md transition-all"
             >
-              -
+              <Send className="w-3.5 h-3.5" />
+              <span>WhatsApp</span>
             </button>
-            <span className="px-2 font-mono">{zoomLevel}%</span>
-            <button
-              onClick={() => setZoomLevel(Math.min(130, zoomLevel + 10))}
-              className="px-1.5 py-0.5 hover:text-white font-bold"
-            >
-              +
-            </button>
-          </div>
+          )}
 
           <button
             onClick={handlePrint}
-            className="px-3.5 py-1.5 text-xs font-bold bg-[#1e293b] hover:bg-[#334155] text-slate-200 rounded-xl border border-[#334155] flex items-center space-x-1.5 transition-colors"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center space-x-1.5 transition-all"
           >
-            <Printer className="w-4 h-4 text-[#94a3b8]" />
-            <span>Print</span>
-          </button>
-
-          <button
-            onClick={handleDownloadPDF}
-            disabled={isGenerating}
-            className="px-5 py-1.5 text-xs font-bold bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-xl shadow-lg flex items-center space-x-2 transition-all disabled:opacity-50"
-          >
-            <Download className="w-4 h-4" />
-            <span>{isGenerating ? 'Generating PDF...' : 'Download PDF'}</span>
-          </button>
-
-          <button
-            onClick={onClose}
-            className="p-1.5 text-[#94a3b8] hover:text-white hover:bg-[#1e293b] rounded-xl transition-colors"
-          >
-            <X className="w-5 h-5" />
+            <Printer className="w-4 h-4" />
+            <span>Print / Save PDF</span>
           </button>
         </div>
       </div>
 
-      {/* Main Pages Container */}
-      <div
-        ref={documentRef}
-        id="printable-pdf"
-        className="w-full flex flex-col items-center py-8 px-4 sm:px-6 space-y-8"
-        style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-      >
-        {/* Optional Cover Page */}
-        {includeCoverPage && (
-          <div className="a4-page w-[210mm] min-h-[297mm] bg-white text-[#0f172a] shadow-2xl border border-[#e2e8f0] p-12 flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-4 bg-[#0B192C]" />
+      {/* A4 PRINT CONTAINER */}
+      <div className="print-area flex justify-center w-full">
+        {/* EXECUTIVE PROJECT QUOTATION TEMPLATE (MATCHING APEX REFERENCE LAYOUT) */}
+        <div className="a4-page w-[210mm] h-[297mm] max-h-[297mm] bg-white text-[#0f172a] shadow-2xl border border-[#cbd5e1] p-7 flex flex-col justify-between relative overflow-hidden box-border">
+          
+          {/* Top Corporate Dark Blue Accent Bar */}
+          <div className="absolute top-0 left-0 right-0 h-3.5 bg-[#0B192C]" />
 
-            <div className="flex items-center justify-between border-b border-[#e2e8f0] pb-6 mt-2">
-              <div className="flex items-center space-x-4">
-                <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm shrink-0">
-                  <img
-                    src={settings.logoUrl || "/zipcon_logo.png"}
-                    alt={settings.companyName || "Company Logo"}
-                    className="h-14 w-auto object-contain"
-                  />
-                </div>
-                <div>
-                  <h1 className="text-xl font-black text-[#0f172a] tracking-tight">{settings.companyName}</h1>
-                  <p className="text-xs text-[#4f46e5] font-bold tracking-wide mt-0.5">{settings.tagline}</p>
-                </div>
-              </div>
-              <span className="px-4 py-1.5 bg-[#0B192C] text-white font-black text-xs rounded-full uppercase tracking-widest">
-                CORPORATE PROPOSAL
-              </span>
-            </div>
-
-            <div className="my-auto py-12 space-y-6">
-              <span className="inline-block px-4 py-1.5 bg-[#e0e7ff] text-[#3730a3] text-xs font-extrabold rounded-full uppercase tracking-wider border border-[#c7d2fe]">
-                OFFICIAL COMMERCIAL COST-SHEET
-              </span>
-              <h2 className="text-4xl font-black text-[#0f172a] leading-tight tracking-tight max-w-xl">
-                Commercial Security & Integrated Facility Services
-              </h2>
-              <p className="text-xs text-[#475569] max-w-lg leading-relaxed font-medium">
-                Comprehensive operational scope, statutory wage compliance framework, and manpower rate card prepared exclusively for{' '}
-                <strong className="text-[#0f172a] font-bold">{quotation.companyName}</strong>.
-              </p>
-
-              <div className="pt-8 grid grid-cols-2 gap-6 border-t border-[#e2e8f0] max-w-md">
-                <div>
-                  <span className="text-[10px] text-[#94a3b8] font-bold uppercase tracking-wider block mb-1">PREPARED FOR</span>
-                  <p className="text-sm font-bold text-[#0f172a]">{quotation.customerName}</p>
-                  <p className="text-xs font-semibold text-[#334155]">{quotation.companyName}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] text-[#94a3b8] font-bold uppercase tracking-wider block mb-1">QUOTATION REF</span>
-                  <p className="text-sm font-bold text-[#4f46e5]">{quotation.quotationNumber}</p>
-                  <p className="text-xs text-[#64748b]">Date: {quotation.date}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-[#e2e8f0] pt-4 flex justify-between items-center text-xs text-[#64748b]">
-              <span className="font-semibold">Tollfree: {settings.phone} • {settings.email}</span>
-              <span className="font-bold text-[#0f172a]">{settings.website}</span>
-            </div>
+          {/* Faded Background Logo Watermark */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.035] pointer-events-none select-none">
+            <img
+              src={settings.logoUrl || "/zipcon_logo.png"}
+              alt="Watermark"
+              className="w-[380px] h-[380px] object-contain grayscale"
+            />
           </div>
-        )}
-
-        {/* ULTRA-PREMIUM SINGLE A4 CORPORATE QUOTATION WITH OFFICIAL ZIPCON LOGO */}
-        <div className="a4-page w-[210mm] h-[297mm] max-h-[297mm] bg-white text-[#0f172a] shadow-2xl border border-[#cbd5e1] p-8 flex flex-col justify-between relative overflow-hidden box-border">
-          {/* Top Corporate Accent Bar */}
-          <div className="absolute top-0 left-0 right-0 h-3 bg-[#0B192C]" />
 
           <div>
-            {/* EXECUTIVE HEADER WITH OFFICIAL ZIPCON LOGO */}
+            {/* 1. HEADER: Company Logo & Top Right Contact Info */}
             <div className="flex justify-between items-start border-b border-[#cbd5e1] pb-3 mb-3 mt-1">
-              <div className="flex items-center space-x-3.5">
-                <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm shrink-0">
-                  <img
-                    src={settings.logoUrl || "/zipcon_logo.png"}
-                    alt={settings.companyName || "Company Logo"}
-                    className="h-12 max-w-[170px] object-contain"
-                  />
-                </div>
+              {/* Left Logo */}
+              <div className="flex items-center space-x-3">
+                <img
+                  src={settings.logoUrl || "/zipcon_logo.png"}
+                  alt={settings.companyName || "Company Logo"}
+                  className="h-12 max-w-[180px] object-contain"
+                />
                 <div>
-                  <h2 className="text-base font-black text-[#0f172a] tracking-tight leading-none">
+                  <h2 className="text-base font-black text-[#0B192C] tracking-tight leading-none uppercase">
                     {settings.companyName}
                   </h2>
                   <p className="text-[9px] text-[#4f46e5] font-bold tracking-wide mt-0.5">{settings.tagline}</p>
-                  <p className="text-[9px] text-[#64748b] mt-0.5 leading-tight">{settings.address}</p>
-                  <p className="text-[9px] text-[#334155] font-semibold">
-                    GSTIN: <strong className="text-[#0f172a]">{settings.gstNumber}</strong> | Tollfree: {settings.phone} | Email: {settings.email}
-                  </p>
                 </div>
               </div>
 
-              <div className="text-right shrink-0">
-                <span className="inline-block px-3 py-1 bg-[#0B192C] text-white font-black text-[10px] rounded uppercase tracking-wider shadow">
-                  OFFICIAL QUOTATION
-                </span>
-                <h3 className="text-sm font-black text-[#1e1b4b] mt-1 font-mono">{quotation.quotationNumber}</h3>
-                <p className="text-[9px] text-[#64748b] font-medium">Issue Date: <strong>{quotation.date}</strong></p>
-                <p className="text-[9px] text-[#64748b] font-medium">Valid Until: <strong>{quotation.validUntil}</strong></p>
+              {/* Right Address & Contact Header */}
+              <div className="text-right text-[9px] text-[#334155] leading-tight space-y-0.5">
+                <p className="font-extrabold text-[#0B192C] text-[10px]">{settings.companyName}</p>
+                <p>{settings.address}</p>
+                <p>GSTIN: <strong className="text-[#0f172a] font-mono">{settings.gstNumber}</strong></p>
+                <p>Phone: {settings.phone} | Web: www.zipcon.in</p>
+                <p>Email: {settings.email}</p>
               </div>
             </div>
 
-            {/* CLIENT & SERVICE LOCATION CARD */}
-            <div className="grid grid-cols-2 gap-3 bg-[#f8fafc] p-2.5 rounded-lg border border-[#e2e8f0] mb-3 text-[11px]">
-              <div className="border-r border-[#cbd5e1] pr-2 space-y-0.5">
-                <span className="font-extrabold text-[9px] text-[#1e1b4b] uppercase tracking-wider block">
-                  CLIENT DETAILS (PREPARED FOR)
-                </span>
-                <p className="font-extrabold text-[#0f172a] text-xs leading-none">
-                  {quotation.customerName}
-                </p>
-                <p className="font-bold text-[#4338ca] text-[11px] leading-tight">{quotation.companyName}</p>
-                <p className="text-[#334155] text-[10px] font-semibold">
-                  GSTIN: <strong className="text-[#0f172a] font-mono">{quotation.customerGst || 'Unregistered / NA'}</strong>
-                </p>
-                <p className="text-[#64748b] text-[10px]">
-                  Mobile: <strong className="text-[#1e293b]">{quotation.customerMobile || 'N/A'}</strong> | Email: <strong className="text-[#1e293b]">{quotation.customerEmail || 'N/A'}</strong>
-                </p>
+            {/* 2. CENTERED BOLD TITLE */}
+            <div className="text-center my-2">
+              <h1 className="text-xl font-black text-[#0B192C] tracking-wider uppercase border-b-2 border-[#0B192C] inline-block pb-0.5 px-4">
+                PROJECT QUOTATION
+              </h1>
+            </div>
+
+            {/* 3. CLIENT DETAILS & QUOTATION METADATA SPLIT GRID */}
+            <div className="flex justify-between items-start my-2 text-[10px] text-[#334155] border-b border-[#cbd5e1] pb-2">
+              {/* Left: Client Details */}
+              <div className="space-y-0.5">
+                <p><strong className="text-[#0f172a] font-bold">To:</strong> {quotation.companyName}</p>
+                <p><strong className="text-[#0f172a] font-bold">Attn:</strong> {quotation.customerName}</p>
+                <p><strong className="text-[#0f172a] font-bold">Address:</strong> {quotation.customerAddress || `${quotation.companyName}, Main Site`}</p>
+                <p><strong className="text-[#0f172a] font-bold">GSTIN:</strong> {quotation.customerGst || 'Unregistered / NA'}</p>
+                <p><strong className="text-[#0f172a] font-bold">Contact:</strong> {quotation.customerMobile} | {quotation.customerEmail}</p>
               </div>
 
-              <div className="pl-1 space-y-0.5">
-                <span className="font-extrabold text-[9px] text-[#1e1b4b] uppercase tracking-wider block">
-                  SERVICE LOCATION & SITE ADDRESS
+              {/* Right: Quotation Number & Date Info */}
+              <div className="text-right space-y-0.5">
+                <p className="text-xs font-black text-[#0B192C] font-mono">QUOTATION #{quotation.quotationNumber}</p>
+                <p><strong className="text-[#0f172a]">Date:</strong> {quotation.date}</p>
+                <p><strong className="text-[#0f172a]">Valid Until:</strong> {quotation.validUntil} ({quotation.validityDays} Days)</p>
+                <p><strong className="text-[#0f172a]">Prepared By:</strong> {quotation.createdBy}</p>
+                <span className="inline-block mt-1 px-2 py-0.5 bg-[#d1fae5] text-[#065f46] font-extrabold rounded text-[8px] border border-[#a7f3d0]">
+                  STATUS: {quotation.status.toUpperCase()}
                 </span>
-                <p className="text-[#1e293b] text-[10px] leading-tight font-semibold bg-white p-1.5 rounded border border-[#cbd5e1]/60">
-                  📍 {quotation.customerAddress || `${quotation.companyName}, Main Corporate Office / Operational Site`}
-                </p>
-                <div className="pt-1 flex items-center justify-between">
-                  <span className="px-2 py-0.5 bg-[#d1fae5] text-[#065f46] font-extrabold rounded text-[9px] border border-[#a7f3d0]">
-                    STATUS: {quotation.status.toUpperCase()}
-                  </span>
-                  <span className="text-[9px] font-bold text-[#64748b]">Prepared By: {quotation.createdBy}</span>
-                </div>
               </div>
             </div>
 
-            {/* EXECUTIVE COST SHEET LINE ITEMS TABLE */}
-            <div className="mb-3 overflow-hidden rounded-lg border border-[#cbd5e1] shadow-sm">
+            {/* 4. LINE ITEMS TABLE (BOXED GRID MATCHING SAMPLE) */}
+            <div className="my-3 overflow-hidden rounded-sm border border-[#0f172a]">
               <table className="w-full text-left border-collapse text-[10px]">
                 <thead>
-                  <tr className="bg-[#0B192C] text-white font-extrabold tracking-wider uppercase">
-                    <th className="py-1.5 px-2.5 border-r border-[#334155] w-8 text-center">#</th>
-                    <th className="py-1.5 px-2.5 border-r border-[#334155]">SERVICE & SCOPE DESCRIPTION</th>
-                    <th className="py-1.5 px-2 text-center border-r border-[#334155] w-12">UNIT</th>
-                    <th className="py-1.5 px-2 text-center border-r border-[#334155] w-10">QTY</th>
-                    <th className="py-1.5 px-2.5 text-right border-r border-[#334155] w-20">RATE (₹)</th>
-                    <th className="py-1.5 px-2 text-center border-r border-[#334155] w-12">ADMIN %</th>
-                    <th className="py-1.5 px-2 text-center border-r border-[#334155] w-12">DISC %</th>
-                    <th className="py-1.5 px-2 text-center border-r border-[#334155] w-12">GST %</th>
-                    <th className="py-1.5 px-2.5 text-right w-24">AMOUNT (₹)</th>
+                  <tr className="bg-[#f1f5f9] text-[#0B192C] font-black tracking-wider uppercase border-b border-[#0f172a]">
+                    <th className="py-2 px-2 border-r border-[#0f172a] w-8 text-center">Line</th>
+                    <th className="py-2 px-2.5 border-r border-[#0f172a]">Description (Item/Service)</th>
+                    <th className="py-2 px-2 text-center border-r border-[#0f172a] w-12">Unit</th>
+                    <th className="py-2 px-2.5 text-right border-r border-[#0f172a] w-20">Unit Price (₹)</th>
+                    <th className="py-2 px-2 text-center border-r border-[#0f172a] w-10">Qty</th>
+                    {quotation.adminChargesTotal && quotation.adminChargesTotal > 0 ? (
+                      <th className="py-2 px-1.5 text-center border-r border-[#0f172a] w-12">Admin %</th>
+                    ) : null}
+                    <th className="py-2 px-1.5 text-center border-r border-[#0f172a] w-12">GST %</th>
+                    <th className="py-2 px-2.5 text-right w-24">Total (₹)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#e2e8f0] text-[10px]">
+                <tbody className="divide-y divide-[#cbd5e1] text-[10px]">
                   {quotation.items.map((item, idx) => (
-                    <tr key={item.id || idx} className="hover:bg-[#f1f5f9] transition-colors">
-                      <td className="py-1.5 px-2.5 text-center font-bold text-[#64748b] border-r border-[#e2e8f0]">{idx + 1}</td>
-                      <td className="py-1.5 px-2.5 border-r border-[#e2e8f0]">
+                    <tr key={item.id || idx} className="hover:bg-[#f8fafc]">
+                      <td className="py-2 px-2 text-center font-bold text-[#475569] border-r border-[#cbd5e1]">{idx + 1}</td>
+                      <td className="py-2 px-2.5 border-r border-[#cbd5e1]">
                         <p className="font-extrabold text-[#0f172a]">{item.name}</p>
                         <p className="text-[#64748b] text-[9px] leading-tight">{item.description}</p>
                       </td>
-                      <td className="py-1.5 px-2 text-center font-semibold text-[#334155] border-r border-[#e2e8f0]">{item.unit}</td>
-                      <td className="py-1.5 px-2 text-center font-black text-[#0f172a] border-r border-[#e2e8f0]">{item.quantity}</td>
-                      <td className="py-1.5 px-2.5 text-right font-semibold text-[#1e293b] border-r border-[#e2e8f0]">₹ {item.rate.toLocaleString('en-IN')}</td>
-                      <td className="py-1.5 px-2 text-center text-[#475569] border-r border-[#e2e8f0]">{item.adminChargePercent || 0}%</td>
-                      <td className="py-1.5 px-2 text-center text-[#475569] border-r border-[#e2e8f0]">{item.discount}%</td>
-                      <td className="py-1.5 px-2 text-center text-[#475569] border-r border-[#e2e8f0]">{item.gstRate}%</td>
-                      <td className="py-1.5 px-2.5 text-right font-black text-[#0f172a] font-mono">
+                      <td className="py-2 px-2 text-center font-semibold text-[#334155] border-r border-[#cbd5e1]">{item.unit}</td>
+                      <td className="py-2 px-2.5 text-right font-semibold text-[#1e293b] border-r border-[#cbd5e1]">₹ {item.rate.toLocaleString('en-IN')}</td>
+                      <td className="py-2 px-2 text-center font-black text-[#0f172a] border-r border-[#cbd5e1]">{item.quantity}</td>
+                      {quotation.adminChargesTotal && quotation.adminChargesTotal > 0 ? (
+                        <td className="py-2 px-1.5 text-center text-[#475569] border-r border-[#cbd5e1]">{item.adminChargePercent || 0}%</td>
+                      ) : null}
+                      <td className="py-2 px-1.5 text-center text-[#475569] border-r border-[#cbd5e1]">{item.gstRate}%</td>
+                      <td className="py-2 px-2.5 text-right font-black text-[#0f172a] font-mono">
                         ₹ {item.total.toLocaleString('en-IN')}
                       </td>
                     </tr>
@@ -311,76 +199,67 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
               </table>
             </div>
 
-            {/* TERMS & FINANCIAL BREAKDOWN SPLIT GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-              {/* Left Column: Key Contractual Terms */}
-              <div className="bg-[#f8fafc] p-2.5 rounded-lg border border-[#e2e8f0] space-y-1">
-                <h4 className="font-extrabold text-[9px] text-[#0B192C] uppercase tracking-wider border-b border-[#cbd5e1] pb-0.5">
-                  KEY TERMS & STATUTORY COMPLIANCE
-                </h4>
-                <div className="max-h-28 overflow-y-auto space-y-0.5 pr-1 text-[9px] text-[#334155] font-medium leading-tight">
-                  {quotation.terms.slice(0, 6).map((term, tIdx) => (
-                    <div key={tIdx} className="flex items-start space-x-1">
-                      <span className="text-[#4f46e5] font-bold shrink-0">✓</span>
-                      <p>{term}</p>
-                    </div>
-                  ))}
-                  {quotation.terms.length > 6 && (
-                    <p className="text-[8px] text-[#64748b] italic pt-0.5">+ {quotation.terms.length - 6} additional statutory terms apply as per agreement.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Column: Financial Calculation Box */}
-              <div className="bg-[#0B192C] text-white p-3 rounded-lg border border-[#1e1b4b] shadow-md space-y-1 text-[10px]">
-                <div className="flex justify-between text-[#cbd5e1]">
-                  <span>Subtotal Amount:</span>
+            {/* 5. TOTALS SUMMARY BLOCK (RIGHT ALIGNED BOX MATCHING SAMPLE) */}
+            <div className="flex justify-end my-2">
+              <div className="w-64 space-y-1 text-[10px] text-[#334155]">
+                <div className="flex justify-between border-b border-slate-200 pb-0.5">
+                  <span className="font-bold">Subtotal:</span>
                   <span className="font-mono font-semibold">₹ {quotation.subtotal.toLocaleString('en-IN')}</span>
                 </div>
 
                 {quotation.adminChargesTotal && quotation.adminChargesTotal > 0 ? (
-                  <div className="flex justify-between text-[#fbbf24] font-semibold">
-                    <span>Admin / Service Charges:</span>
+                  <div className="flex justify-between border-b border-slate-200 pb-0.5 text-[#b45309]">
+                    <span className="font-bold">Admin Charges:</span>
                     <span className="font-mono">+ ₹ {quotation.adminChargesTotal.toLocaleString('en-IN')}</span>
                   </div>
                 ) : null}
 
                 {quotation.totalDiscount > 0 && (
-                  <div className="flex justify-between text-[#34d399] font-semibold">
-                    <span>Discount Allowed:</span>
+                  <div className="flex justify-between border-b border-slate-200 pb-0.5 text-[#047857]">
+                    <span className="font-bold">Discount Allowed:</span>
                     <span className="font-mono">- ₹ {quotation.totalDiscount.toLocaleString('en-IN')}</span>
                   </div>
                 )}
 
-                <div className="flex justify-between text-[#cbd5e1]">
-                  <span>GST Liability (18% Slab):</span>
+                <div className="flex justify-between border-b border-slate-200 pb-0.5">
+                  <span className="font-bold">Tax / GST (18%):</span>
                   <span className="font-mono font-semibold">₹ {quotation.totalGst.toLocaleString('en-IN')}</span>
                 </div>
 
-                <div className="border-t border-[#334155] pt-1.5 flex justify-between items-center">
-                  <span className="font-black text-xs text-white">NET AMOUNT PAYABLE:</span>
-                  <span className="text-base font-black text-[#818cf8] font-mono">
-                    ₹ {quotation.grandTotal.toLocaleString('en-IN')}
-                  </span>
+                <div className="flex justify-between pt-1 border-t-2 border-b-2 border-[#0B192C] font-black text-xs text-[#0B192C]">
+                  <span>Total Amount:</span>
+                  <span className="font-mono text-sm">₹ {quotation.grandTotal.toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </div>
 
-            {/* BANK DETAILS & PAYMENT QR CODE CARD */}
-            <div className="grid grid-cols-2 gap-3 p-2.5 bg-[#e0e7ff]/40 rounded-lg border border-[#c7d2fe] text-[9px]">
-              <div>
-                <h4 className="font-extrabold text-[#1e1b4b] uppercase tracking-wider mb-0.5">BANK NEFT / RTGS TRANSFER DETAILS</h4>
-                <p className="text-[#1e293b]">Bank Name: <strong>{settings.bankName}</strong></p>
-                <p className="text-[#1e293b]">Account No: <strong className="font-mono">{settings.accountNumber}</strong> | IFSC: <strong className="font-mono">{settings.ifscCode}</strong></p>
-                <p className="text-[#475569]">Branch: {settings.branchName}</p>
-              </div>
+            {/* 6. TERMS & CONDITIONS (NUMBERED LIST MATCHING SAMPLE) */}
+            <div className="my-2 text-[9.5px] text-[#334155] space-y-1">
+              <h4 className="font-black text-[#0B192C] uppercase tracking-wider text-[10px] border-b border-[#cbd5e1] pb-0.5">
+                Terms & Conditions
+              </h4>
+              <ol className="list-decimal list-inside space-y-0.5 font-medium leading-tight text-[#1e293b]">
+                {quotation.terms.slice(0, 6).map((term, tIdx) => (
+                  <li key={tIdx} className="pl-1">
+                    <span>{term}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
 
+            {/* 7. BANK DETAILS & UPI NEFT QR CODE */}
+            <div className="my-2 grid grid-cols-2 gap-2 p-2 bg-[#f8fafc] rounded border border-[#cbd5e1] text-[9px]">
+              <div>
+                <p className="font-extrabold text-[#0B192C] uppercase">BANK NEFT / RTGS DETAILS</p>
+                <p>Bank: <strong>{settings.bankName}</strong> | Branch: {settings.branchName}</p>
+                <p>A/C: <strong className="font-mono">{settings.accountNumber}</strong> | IFSC: <strong className="font-mono">{settings.ifscCode}</strong></p>
+              </div>
               <div className="flex items-center justify-end space-x-2">
                 <div className="text-right">
-                  <span className="font-bold text-[#0f172a] block text-[9px]">SCAN TO PAY / VERIFY</span>
-                  <span className="text-[8px] text-[#64748b]">Instant UPI Direct Deposit</span>
+                  <p className="font-bold text-[#0B192C] text-[8.5px]">SCAN TO PAY / VERIFY</p>
+                  <p className="text-[7.5px] text-[#64748b]">Instant Direct Transfer</p>
                 </div>
-                <div className="w-11 h-11 bg-white p-1 rounded border border-[#cbd5e1] flex items-center justify-center shrink-0 shadow-sm">
+                <div className="w-9 h-9 bg-white p-0.5 rounded border border-[#cbd5e1] flex items-center justify-center shrink-0">
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=UPI://${settings.accountNumber}@hdfcbank`}
                     alt="Payment QR"
@@ -391,47 +270,50 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
             </div>
           </div>
 
-          {/* OFFICIAL CORPORATE FOOTER WITH SIGNATURE & STAMP */}
-          <div className="flex justify-between items-end border-t border-[#cbd5e1] pt-2.5 mt-auto text-[9px]">
-            <div className="text-[#64748b] space-y-0.5">
-              <div className="flex items-center space-x-1 text-[#047857] font-extrabold">
-                <Shield className="w-3.5 h-3.5 text-[#059669]" />
-                <span>Verified Official Document • ISO 9001:2015 Certified</span>
+          {/* 8. ACCEPTED BY & DUAL SIGNATURE BLOCK (MATCHING APEX REFERENCE FOOTER) */}
+          <div className="border-t border-[#0B192C] pt-2 mt-auto text-[9.5px]">
+            <div className="flex justify-between items-end">
+              {/* Left Accepted By Line */}
+              <div className="space-y-1">
+                <p className="text-[#334155]">
+                  <strong>Accepted by:</strong> _______________________ | <strong>Date:</strong> ___________
+                </p>
+                <p className="text-[8px] text-[#64748b]">Client Authorization Signature & Seal</p>
               </div>
-              <p>Generated via Zipcon QuoteFlow Corporate CRM System</p>
-              <p className="text-[8px] text-[#94a3b8]">Regd. Office: {settings.address}</p>
-            </div>
 
-            <div className="text-center relative min-w-[160px]">
-              {settings.companyStampUrl ? (
-                <img
-                  src={settings.companyStampUrl}
-                  alt="Company Stamp"
-                  className="absolute -top-7 left-1/2 -translate-x-1/2 h-14 w-14 object-contain opacity-80 pointer-events-none transform -rotate-12"
-                />
-              ) : quotation.hasCompanyStamp ? (
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full border-2 border-[#4338ca]/50 text-[#4338ca]/60 flex items-center justify-center font-black text-[8px] uppercase tracking-wider transform -rotate-12 pointer-events-none">
-                  OFFICIAL SEAL
-                </div>
-              ) : null}
+              {/* Right Zipcon Signature Block */}
+              <div className="text-right relative min-w-[160px]">
+                {settings.companyStampUrl ? (
+                  <img
+                    src={settings.companyStampUrl}
+                    alt="Company Stamp"
+                    className="absolute -top-6 right-4 h-12 w-12 object-contain opacity-80 pointer-events-none transform -rotate-12"
+                  />
+                ) : quotation.hasCompanyStamp ? (
+                  <div className="absolute -top-6 right-4 w-14 h-14 rounded-full border-2 border-[#4338ca]/50 text-[#4338ca]/60 flex items-center justify-center font-black text-[7px] uppercase tracking-wider transform -rotate-12 pointer-events-none">
+                    OFFICIAL SEAL
+                  </div>
+                ) : null}
 
-              {(quotation.digitalSignature || settings.digitalSignatureUrl) ? (
-                <img
-                  src={quotation.digitalSignature || settings.digitalSignatureUrl}
-                  alt="Signature"
-                  className="h-9 mx-auto object-contain mb-0.5"
-                />
-              ) : (
-                <div className="h-9 font-serif italic text-[#1e293b] text-xs flex items-center justify-center font-bold">
-                  Authorized Signatory
-                </div>
-              )}
-              <div className="border-t border-[#0f172a] pt-0.5">
-                <p className="text-[10px] font-black text-[#0f172a]">For {settings.companyName}</p>
-                <p className="text-[8px] text-[#64748b] font-semibold">Authorized Signature & Stamp</p>
+                {(quotation.digitalSignature || settings.digitalSignatureUrl) ? (
+                  <img
+                    src={quotation.digitalSignature || settings.digitalSignatureUrl}
+                    alt="Signature"
+                    className="h-8 ml-auto object-contain mb-0.5"
+                  />
+                ) : (
+                  <div className="h-8 font-serif italic text-[#1e293b] text-xs flex items-center justify-end font-bold pr-2">
+                    Authorized Signatory
+                  </div>
+                )}
+                <p className="font-extrabold text-[#0B192C] text-[10px]">For {settings.companyName}</p>
+                <p className="text-[8px] text-[#64748b]">Authorized Signature & Stamp</p>
               </div>
             </div>
           </div>
+
+          {/* Bottom Corporate Accent Line */}
+          <div className="absolute bottom-0 left-0 right-0 h-2 bg-[#0B192C]" />
         </div>
       </div>
     </div>

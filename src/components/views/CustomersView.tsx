@@ -27,6 +27,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
   const [isScanning, setIsScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [scannedSummary, setScannedSummary] = useState<any | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const openAddModal = () => {
@@ -41,6 +42,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
     setNotes('');
     setScanSuccess(false);
     setScanError(null);
+    setScannedSummary(null);
     setShowModal(true);
   };
 
@@ -62,6 +64,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
     setIsScanning(true);
     setScanSuccess(false);
     setScanError(null);
+    setScannedSummary(null);
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -69,6 +72,8 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
         const base64Data = event.target.result as string;
         try {
           const scanned = await scanVisitingCardWithGemini(base64Data, file.type);
+          setScannedSummary(scanned);
+
           if (scanned.companyName) setCompanyName(scanned.companyName);
           if (scanned.name) setName(scanned.name);
           if (scanned.contactPerson) setContactPerson(scanned.contactPerson);
@@ -79,7 +84,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
           if (scanned.notes) setNotes(scanned.notes);
 
           setScanSuccess(true);
-          setTimeout(() => setScanSuccess(false), 5000);
+          setTimeout(() => setScanSuccess(false), 6000);
         } catch (err: any) {
           console.error('Card scan error:', err);
           setScanError('Failed to extract card details. Please fill manually or try a clearer photo.');
@@ -286,7 +291,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
                   <p className="font-extrabold text-white flex items-center gap-1">
                     <span>⚡ Gemini Vision AI Scanning Business Card...</span>
                   </p>
-                  <p className="text-[10px] text-purple-300">Extracting company, contact name, mobile, email & GSTIN</p>
+                  <p className="text-[10px] text-purple-300">Extracting company, contact name, designation, mobile, email, GSTIN & address</p>
                 </div>
               </div>
             )}
@@ -294,13 +299,62 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
             {scanSuccess && (
               <div className="mt-3 p-3 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-200 flex items-center space-x-2 text-xs">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span className="font-semibold">✅ Card scanned successfully! Form fields auto-populated by AI.</span>
+                <span className="font-semibold">✅ Card scanned successfully! All detected details auto-populated.</span>
               </div>
             )}
 
             {scanError && (
               <div className="mt-3 p-3 bg-rose-50 text-rose-800 rounded-2xl border border-rose-200 text-xs font-medium">
                 {scanError}
+              </div>
+            )}
+
+            {/* AI Extracted Card Details Summary Box */}
+            {scannedSummary && !isScanning && (
+              <div className="mt-3 p-3.5 bg-gradient-to-r from-purple-950 to-indigo-950 text-white rounded-2xl border border-purple-500/40 shadow-lg text-xs space-y-2 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-purple-800/80 pb-1.5">
+                  <div className="flex items-center space-x-1.5 font-bold text-amber-300">
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span>Gemini Vision AI Card Extraction Results</span>
+                  </div>
+                  <span className="text-[10px] bg-purple-900/80 text-purple-200 px-2 py-0.5 rounded-full font-bold">Auto-Filled</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-sans pt-1">
+                  <div className="truncate text-purple-200">
+                    <span className="font-semibold text-purple-300">🏢 Company: </span>
+                    <span className="font-bold text-white">{scannedSummary.companyName || '—'}</span>
+                  </div>
+
+                  <div className="truncate text-purple-200">
+                    <span className="font-semibold text-purple-300">👤 Contact: </span>
+                    <span className="font-bold text-white">{scannedSummary.contactPerson || scannedSummary.name || '—'}</span>
+                  </div>
+
+                  <div className="truncate text-purple-200">
+                    <span className="font-semibold text-purple-300">📱 Mobile: </span>
+                    <span className="font-bold text-white">{scannedSummary.mobile || '—'}</span>
+                  </div>
+
+                  <div className="truncate text-purple-200">
+                    <span className="font-semibold text-purple-300">✉️ Email: </span>
+                    <span className="font-bold text-white">{scannedSummary.email || '—'}</span>
+                  </div>
+
+                  <div className="truncate text-purple-200">
+                    <span className="font-semibold text-purple-300">🏛️ GSTIN: </span>
+                    <span className="font-bold text-white">{scannedSummary.gstNumber || '—'}</span>
+                  </div>
+
+                  <div className="truncate text-purple-200">
+                    <span className="font-semibold text-purple-300">📍 Address: </span>
+                    <span className="font-bold text-white">{scannedSummary.address || '—'}</span>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-purple-300 pt-1 italic">
+                  💡 Extracted info filled below. Any missing field can be manually added or edited before saving.
+                </p>
               </div>
             )}
 

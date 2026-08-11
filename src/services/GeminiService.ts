@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Google Gemini AI Service — QuoteFlow ERP
-// Powered by Google Gemini AI Engine with Multimodal Vision OCR
+// Powered by Google Gemini AI Engine with Ultra-Intelligent Vision OCR
 // ─────────────────────────────────────────────────────────────────────────
 import type { Quotation } from '../types';
 
@@ -13,6 +13,8 @@ export interface ScannedCardData {
   gstNumber: string;
   address: string;
   notes: string;
+  designation?: string;
+  website?: string;
 }
 
 // Runtime API key accessor (decodes at runtime to prevent git secret scanner block)
@@ -70,18 +72,28 @@ export async function scanVisitingCardWithGemini(
   const apiKey = getGeminiApiKey();
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
-  const prompt = `You are a high-precision OCR AI. Analyze this business card / visiting card image and extract all contact details.
-Return ONLY a valid raw JSON object without markdown fences, code blocks, or preamble.
-JSON keys must match:
+  const prompt = `You are an expert OCR AI specialized in parsing Indian and International business / visiting cards.
+Examine this visiting card image with extreme precision and extract ALL readable details.
+
+RULES:
+1. Extract whatever information is present on the card into the corresponding fields.
+2. If a field is NOT present on the card, set it to an empty string (""). DO NOT invent or hallucinate missing data.
+3. For GSTIN: look for 15-character alphanumeric codes (e.g. 07AAAAA0000A1Z5 or GST No).
+4. For designation / title: include it in contactPerson or notes (e.g. "Managing Director", "CEO", "Sales Manager").
+5. For notes: include services, taglines, website URLs, or extra phone numbers.
+
+Return ONLY a valid JSON object matching this exact structure, with no markdown formatting or extra text:
 {
-  "companyName": "Company or Business Name",
+  "companyName": "Exact Company / Business Name",
   "name": "Full Person Name",
-  "contactPerson": "Designation or Person Name",
-  "mobile": "Mobile / Phone Number with country code if available",
-  "email": "Email address",
-  "gstNumber": "GSTIN number if present",
-  "address": "Full street address, city, state, pincode",
-  "notes": "Tagline, services, website URL or extra details"
+  "contactPerson": "Full Person Name and/or Designation",
+  "designation": "Job Title / Role if present",
+  "mobile": "Primary Mobile / Phone Number",
+  "email": "Email Address",
+  "gstNumber": "GSTIN Number if present",
+  "address": "Full Street Address, City, State, Pincode",
+  "website": "Website URL if present",
+  "notes": "Tagline, Services, Website or Additional Contact Details"
 }`;
 
   try {
@@ -111,21 +123,36 @@ JSON keys must match:
 
     const json = await response.json();
     const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const cleanJsonText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    // Extract JSON string cleanly
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const cleanJsonText = jsonMatch ? jsonMatch[0] : rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     const parsed = JSON.parse(cleanJsonText);
+
+    const contactName = parsed.name || parsed.contactPerson || '';
+    const designation = parsed.designation ? ` (${parsed.designation})` : '';
+    const fullContact = `${contactName}${designation}`.trim();
+
+    let combinedNotes = parsed.notes || '';
+    if (parsed.website && !combinedNotes.includes(parsed.website)) {
+      combinedNotes = combinedNotes ? `${combinedNotes} | Website: ${parsed.website}` : `Website: ${parsed.website}`;
+    }
+
     return {
       companyName: parsed.companyName || '',
-      name: parsed.name || parsed.contactPerson || '',
-      contactPerson: parsed.contactPerson || parsed.name || '',
+      name: contactName,
+      contactPerson: fullContact || contactName,
+      designation: parsed.designation || '',
       mobile: parsed.mobile || '',
       email: parsed.email || '',
       gstNumber: parsed.gstNumber || '',
       address: parsed.address || '',
-      notes: parsed.notes || '',
+      website: parsed.website || '',
+      notes: combinedNotes,
     };
   } catch (err) {
-    console.error('Gemini Vision Card Scan error:', err);
+    console.error('Gemini Vision Ultra Card Scan error:', err);
     throw err;
   }
 }

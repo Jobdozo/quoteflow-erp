@@ -476,6 +476,19 @@ export const StorageService = {
     return settings;
   },
 
+  // Catalog Categories
+  getCategories(userId?: string): string[] {
+    const defaultCategories = ['Security', 'Housekeeping', 'Manpower', 'CCTV & Safety', 'Insurance & AMC'];
+    const key = getScopedKey('quoteflow_custom_categories', userId);
+    return getItem(key, defaultCategories);
+  },
+  saveCategories(categories: string[], userId?: string): string[] {
+    const key = getScopedKey('quoteflow_custom_categories', userId);
+    setItem(key, categories);
+    this.addAuditLog('Updated Catalog Categories', 'Products', userId);
+    return categories;
+  },
+
   resetAllData(userId?: string): void {
     const keys = Object.values(BASE_KEYS).map((k) => getScopedKey(k, userId));
     keys.forEach((k) => localStorage.removeItem(k));

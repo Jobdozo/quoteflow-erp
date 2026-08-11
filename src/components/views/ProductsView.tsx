@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Package, Plus, Search, Shield, Sparkles, Edit, Trash2, X } from 'lucide-react';
+import { Package, Plus, Search, Shield, Sparkles, Edit, Trash2, X, FolderPlus, Tag, CheckCircle2 } from 'lucide-react';
 import { Product } from '../../types';
+import { StorageService } from '../../utils/storage';
 
 interface ProductsViewProps {
   products: Product[];
@@ -12,11 +13,18 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [showModal, setShowModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  // Form State
+  // Category State
+  const [customCategories, setCustomCategories] = useState<string[]>(() => StorageService.getCategories());
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [categoryNotice, setCategoryNotice] = useState<string | null>(null);
+
+  // Product Form State
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<Product['category']>('Security');
+  const [category, setCategory] = useState<string>('Security');
+  const [customCategoryName, setCustomCategoryName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('Month');
   const [rate, setRate] = useState<number>(18500);
@@ -24,12 +32,55 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
   const [costPrice, setCostPrice] = useState<number>(14000);
   const [standardTerms, setStandardTerms] = useState('');
 
-  const categories = ['All', 'Security', 'Housekeeping', 'Manpower', 'CCTV & Safety', 'Insurance & AMC'];
+  const filterTabs = ['All', ...customCategories];
+
+  const handleAddCategory = (catNameStr?: string) => {
+    const targetName = (catNameStr || newCategoryInput).trim();
+    if (!targetName) return;
+
+    if (customCategories.some((c) => c.toLowerCase() === targetName.toLowerCase())) {
+      alert(`Category "${targetName}" already exists!`);
+      return;
+    }
+
+    const updated = [...customCategories, targetName];
+    setCustomCategories(updated);
+    StorageService.saveCategories(updated);
+    setNewCategoryInput('');
+    setCategoryNotice(`Category "${targetName}" added successfully!`);
+    setTimeout(() => setCategoryNotice(null), 3000);
+  };
+
+  const handleDeleteCategory = (catToDelete: string) => {
+    if (customCategories.length <= 1) {
+      alert('You must keep at least one category in the catalog.');
+      return;
+    }
+
+    const countInCat = products.filter((p) => p.category === catToDelete).length;
+    const confirmMsg = countInCat > 0
+      ? `Category "${catToDelete}" has ${countInCat} active product(s). Are you sure you want to delete this category?`
+      : `Are you sure you want to delete category "${catToDelete}"?`;
+
+    if (window.confirm(confirmMsg)) {
+      const updated = customCategories.filter((c) => c !== catToDelete);
+      setCustomCategories(updated);
+      StorageService.saveCategories(updated);
+
+      if (categoryFilter === catToDelete) {
+        setCategoryFilter('All');
+      }
+
+      setCategoryNotice(`Category "${catToDelete}" deleted!`);
+      setTimeout(() => setCategoryNotice(null), 3000);
+    }
+  };
 
   const openAddModal = () => {
     setEditingProduct(null);
     setName('');
-    setCategory('Security');
+    setCategory(customCategories[0] || 'Security');
+    setCustomCategoryName('');
     setDescription('');
     setUnit('Month');
     setRate(15000);
@@ -43,6 +94,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
     setEditingProduct(p);
     setName(p.name);
     setCategory(p.category);
+    setCustomCategoryName('');
     setDescription(p.description);
     setUnit(p.unit);
     setRate(p.rate);
@@ -52,12 +104,28 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
     setShowModal(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
+    let finalCategory = category;
+
+    if (category === '__NEW__') {
+      const trimmed = customCategoryName.trim();
+      if (!trimmed) {
+        alert('Please enter a valid category name.');
+        return;
+      }
+      if (!customCategories.includes(trimmed)) {
+        const updated = [...customCategories, trimmed];
+        setCustomCategories(updated);
+        StorageService.saveCategories(updated);
+      }
+      finalCategory = trimmed;
+    }
+
     const product: Product = {
       id: editingProduct?.id || `prod-${Date.now()}`,
       name,
-      category,
+      category: finalCategory,
       description,
       unit,
       rate: Number(rate),
@@ -65,6 +133,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
       costPrice: Number(costPrice),
       standardTerms,
     };
+
     onSaveProduct(product);
     setShowModal(false);
   };
@@ -84,23 +153,42 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Products & Services Catalog</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure default billing units, rates, GST tax slabs, and standard operational terms.
+            Configure billing units, rates, GST tax slabs, standard terms, and custom catalog categories.
           </p>
         </div>
 
-        <button
-          onClick={openAddModal}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 flex items-center space-x-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Product</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowCategoryModal(true)}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 flex items-center space-x-1.5 transition-all"
+            title="Add or delete product categories"
+          >
+            <FolderPlus className="w-4 h-4 text-slate-600" />
+            <span>Manage Categories ({customCategories.length})</span>
+          </button>
+
+          <button
+            onClick={openAddModal}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 flex items-center space-x-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Product</span>
+          </button>
+        </div>
       </div>
+
+      {/* Notice Banner */}
+      {categoryNotice && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold px-4 py-2.5 rounded-xl flex items-center space-x-2 animate-in fade-in duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>{categoryNotice}</span>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center space-x-1 overflow-x-auto">
-          {categories.map((cat) => (
+        <div className="flex items-center space-x-1 overflow-x-auto pb-1 sm:pb-0">
+          {filterTabs.map((cat) => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
@@ -144,28 +232,28 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
                     </span>
                     <h3 className="font-bold text-slate-900 text-sm mt-1.5">{p.name}</h3>
                   </div>
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={() => openEditModal(p)}
-                    title="Edit Product / Service"
-                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  {onDeleteProduct && (
+                  <div className="flex items-center space-x-1">
                     <button
-                      onClick={() => {
-                        if (window.confirm(`Are you sure you want to delete product item '${p.name}'?`)) {
-                          onDeleteProduct(p.id);
-                        }
-                      }}
-                      title="Delete Product / Service"
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                      onClick={() => openEditModal(p)}
+                      title="Edit Product / Service"
+                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Edit className="w-4 h-4" />
                     </button>
-                  )}
-                </div>
+                    {onDeleteProduct && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete product item '${p.name}'?`)) {
+                            onDeleteProduct(p.id);
+                          }
+                        }}
+                        title="Delete Product / Service"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <p className="text-xs text-slate-500 mt-2 line-clamp-2">{p.description}</p>
@@ -191,6 +279,88 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
         })}
       </div>
 
+      {/* Category Manager Modal */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-md w-full p-6 animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <FolderPlus className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-base font-bold text-slate-900">Manage Catalog Categories</h3>
+              </div>
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Add Category Form */}
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={newCategoryInput}
+                onChange={(e) => setNewCategoryInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCategory();
+                  }
+                }}
+                placeholder="Enter new category name..."
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-500"
+              />
+              <button
+                onClick={() => handleAddCategory()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md transition-all flex items-center space-x-1"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add</span>
+              </button>
+            </div>
+
+            {/* Category List */}
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {customCategories.map((cat) => {
+                const count = products.filter((p) => p.category === cat).length;
+                return (
+                  <div
+                    key={cat}
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-800"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Tag className="w-4 h-4 text-indigo-500" />
+                      <span>{cat}</span>
+                      <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                        {count} item{count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteCategory(cat)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      title={`Delete category "${cat}"`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="px-4 py-2 font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add / Edit Product Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -207,7 +377,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="mt-4 space-y-3 text-xs">
+            <form onSubmit={handleSaveProduct} className="mt-4 space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">Product / Service Name</label>
                 <input
@@ -225,16 +395,27 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ products, onSaveProd
                   <label className="block font-bold text-slate-700 mb-1">Category</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:border-indigo-500"
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none focus:border-indigo-500 font-semibold"
                   >
-                    <option value="Security">Security</option>
-                    <option value="Housekeeping">Housekeeping</option>
-                    <option value="Manpower">Manpower</option>
-                    <option value="CCTV & Safety">CCTV & Safety</option>
-                    <option value="Insurance & AMC">Insurance & AMC</option>
-                    <option value="Custom">Custom</option>
+                    {customCategories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="__NEW__">+ Add New Category...</option>
                   </select>
+
+                  {category === '__NEW__' && (
+                    <input
+                      type="text"
+                      required
+                      value={customCategoryName}
+                      onChange={(e) => setCustomCategoryName(e.target.value)}
+                      placeholder="Type custom category..."
+                      className="w-full mt-2 bg-indigo-50/60 border border-indigo-200 rounded-xl px-3 py-1.5 text-slate-900 font-bold outline-none focus:border-indigo-500"
+                    />
+                  )}
                 </div>
 
                 <div>

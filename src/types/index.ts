@@ -161,7 +161,7 @@ export interface AuditLog {
 export interface Product {
   id: string;
   name: string;
-  category: 'Security' | 'Housekeeping' | 'Manpower' | 'CCTV & Safety' | 'Insurance & AMC' | 'Bouncer' | 'Lady Guard' | 'Custom';
+  category: string;
   description: string;
   unit: string;
   rate: number;

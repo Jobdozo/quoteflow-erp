@@ -278,6 +278,7 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
                     <th className="py-1.5 px-2 text-center border-r border-[#334155] w-12">UNIT</th>
                     <th className="py-1.5 px-2 text-center border-r border-[#334155] w-10">QTY</th>
                     <th className="py-1.5 px-2.5 text-right border-r border-[#334155] w-20">RATE (₹)</th>
+                    <th className="py-1.5 px-2 text-center border-r border-[#334155] w-12">ADMIN %</th>
                     <th className="py-1.5 px-2 text-center border-r border-[#334155] w-12">DISC %</th>
                     <th className="py-1.5 px-2 text-center border-r border-[#334155] w-12">GST %</th>
                     <th className="py-1.5 px-2.5 text-right w-24">AMOUNT (₹)</th>
@@ -294,6 +295,7 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
                       <td className="py-1.5 px-2 text-center font-semibold text-[#334155] border-r border-[#e2e8f0]">{item.unit}</td>
                       <td className="py-1.5 px-2 text-center font-black text-[#0f172a] border-r border-[#e2e8f0]">{item.quantity}</td>
                       <td className="py-1.5 px-2.5 text-right font-semibold text-[#1e293b] border-r border-[#e2e8f0]">₹ {item.rate.toLocaleString('en-IN')}</td>
+                      <td className="py-1.5 px-2 text-center text-[#475569] border-r border-[#e2e8f0]">{item.adminChargePercent || 0}%</td>
                       <td className="py-1.5 px-2 text-center text-[#475569] border-r border-[#e2e8f0]">{item.discount}%</td>
                       <td className="py-1.5 px-2 text-center text-[#475569] border-r border-[#e2e8f0]">{item.gstRate}%</td>
                       <td className="py-1.5 px-2.5 text-right font-black text-[#0f172a] font-mono">
@@ -331,6 +333,13 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
                   <span>Subtotal Amount:</span>
                   <span className="font-mono font-semibold">₹ {quotation.subtotal.toLocaleString('en-IN')}</span>
                 </div>
+
+                {quotation.adminChargesTotal && quotation.adminChargesTotal > 0 ? (
+                  <div className="flex justify-between text-[#fbbf24] font-semibold">
+                    <span>Admin / Service Charges:</span>
+                    <span className="font-mono">+ ₹ {quotation.adminChargesTotal.toLocaleString('en-IN')}</span>
+                  </div>
+                ) : null}
 
                 {quotation.totalDiscount > 0 && (
                   <div className="flex justify-between text-[#34d399] font-semibold">

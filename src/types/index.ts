@@ -18,6 +18,7 @@ export interface QuotationItem {
   unit: string;
   quantity: number;
   rate: number;
+  adminChargePercent?: number;
   discount: number;
   gstRate: number;
   total: number;
@@ -39,6 +40,7 @@ export interface Quotation {
   validUntil: string;
   items: QuotationItem[];
   subtotal: number;
+  adminChargesTotal?: number;
   totalDiscount: number;
   totalGst: number;
   grandTotal: number;

@@ -97,21 +97,35 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
     customers.find((c) => c.id === selectedCustomerId) || customers[0];
 
   // Financial Calculations
-  const subtotal = items.reduce(
+  const rawSubtotal = items.reduce(
     (sum, item) => sum + item.rate * item.quantity,
     0
   );
-  const totalDiscount = items.reduce(
+
+  const totalAdminCharges = items.reduce(
     (sum, item) =>
-      sum + (item.rate * item.quantity * (item.discount || 0)) / 100,
+      sum + (item.rate * item.quantity * (item.adminChargePercent || 0)) / 100,
     0
   );
+
+  const subtotal = rawSubtotal + totalAdminCharges;
+
+  const totalDiscount = items.reduce(
+    (sum, item) => {
+      const base = item.rate * item.quantity;
+      const adminFee = (base * (item.adminChargePercent || 0)) / 100;
+      return sum + ((base + adminFee) * (item.discount || 0)) / 100;
+    },
+    0
+  );
+
   const totalGst = items.reduce((sum, item) => {
-    const itemNet =
-      item.rate * item.quantity -
-      (item.rate * item.quantity * (item.discount || 0)) / 100;
-    return sum + (itemNet * item.gstRate) / 100;
+    const base = item.rate * item.quantity;
+    const adminFee = (base * (item.adminChargePercent || 0)) / 100;
+    const itemTaxable = (base + adminFee) - ((base + adminFee) * (item.discount || 0)) / 100;
+    return sum + (itemTaxable * item.gstRate) / 100;
   }, 0);
+
   const grandTotal = Math.round(subtotal - totalDiscount + totalGst);
 
   const totalCost = items.reduce(
@@ -134,6 +148,7 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
       unit: defaultProd?.unit || 'Month',
       quantity: 1,
       rate: defaultProd?.rate || 0,
+      adminChargePercent: 0,
       discount: 0,
       gstRate: defaultProd?.gstRate || 18,
       total: defaultProd?.rate || 0,
@@ -150,9 +165,11 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
     const updated = [...items];
     const item = { ...updated[index], [field]: value };
 
-    // Auto-recalculate line total
-    const netRate = item.rate - (item.rate * (item.discount || 0)) / 100;
-    item.total = Math.round(netRate * item.quantity);
+    // Auto-recalculate line total (Base + Admin - Disc)
+    const base = item.rate * item.quantity;
+    const adminFee = (base * (item.adminChargePercent || 0)) / 100;
+    const taxable = (base + adminFee) - ((base + adminFee) * (item.discount || 0)) / 100;
+    item.total = Math.round(taxable);
 
     updated[index] = item;
     setItems(updated);
@@ -163,6 +180,10 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
     if (!selectedProd) return;
 
     const updated = [...items];
+    const base = selectedProd.rate * updated[index].quantity;
+    const adminFee = (base * (updated[index].adminChargePercent || 0)) / 100;
+    const taxable = (base + adminFee) - ((base + adminFee) * (updated[index].discount || 0)) / 100;
+
     updated[index] = {
       ...updated[index],
       productId: selectedProd.id,
@@ -172,11 +193,7 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
       rate: selectedProd.rate,
       gstRate: selectedProd.gstRate,
       costPerUnit: selectedProd.costPrice,
-      total: Math.round(
-        (selectedProd.rate -
-          (selectedProd.rate * (updated[index].discount || 0)) / 100) *
-          updated[index].quantity
-      ),
+      total: Math.round(taxable),
     };
     setItems(updated);
   };
@@ -226,6 +243,7 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
       validUntil: validUntilDate,
       items,
       subtotal,
+      adminChargesTotal: totalAdminCharges,
       totalDiscount,
       totalGst,
       grandTotal,
@@ -243,12 +261,12 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-16 animate-in fade-in duration-300">
-      {/* Top Action Header */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            {editingQuotation ? 'Edit Quotation Proposal' : 'Create New Quotation'}
+            {editingQuotation ? `Edit Quotation (${editingQuotation.quotationNumber})` : 'Create New Quotation'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Build customized commercial proposal with automated GST, AI assistance, and terms manager.
@@ -280,6 +298,7 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
                   validUntil: validUntilDate,
                   items,
                   subtotal,
+                  adminChargesTotal: totalAdminCharges,
                   totalDiscount,
                   totalGst,
                   grandTotal,
@@ -396,13 +415,14 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
-                  <th className="py-2.5 px-3 min-w-[280px]">Service Name & Scope</th>
-                  <th className="py-2.5 px-3 w-28">Unit</th>
-                  <th className="py-2.5 px-3 w-24">Qty</th>
-                  <th className="py-2.5 px-3 w-28">Rate (₹)</th>
+                  <th className="py-2.5 px-3 min-w-[260px]">Service Name & Scope</th>
+                  <th className="py-2.5 px-3 w-24">Unit</th>
+                  <th className="py-2.5 px-3 w-20">Qty</th>
+                  <th className="py-2.5 px-3 w-24">Rate (₹)</th>
+                  <th className="py-2.5 px-3 w-20">Admin %</th>
                   <th className="py-2.5 px-3 w-20">Disc %</th>
                   <th className="py-2.5 px-3 w-20">GST %</th>
-                  <th className="py-2.5 px-3 w-32 text-right">Total (₹)</th>
+                  <th className="py-2.5 px-3 w-28 text-right">Total (₹)</th>
                   <th className="py-2.5 px-2 w-10 text-center"></th>
                 </tr>
               </thead>
@@ -476,6 +496,21 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
                         value={item.rate}
                         onChange={(e) => handleUpdateItem(idx, 'rate', Number(e.target.value))}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-900 outline-none"
+                      />
+                    </td>
+
+                    {/* Admin Charges % */}
+                    <td className="py-3 px-3 align-top">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={item.adminChargePercent || 0}
+                        onChange={(e) => handleUpdateItem(idx, 'adminChargePercent', Number(e.target.value))}
+                        placeholder="0%"
+                        className="w-full bg-indigo-50/50 border border-indigo-200 rounded-lg px-2 py-1.5 text-xs font-bold text-indigo-700 outline-none text-center focus:border-indigo-500 focus:bg-white"
+                        title="Admin / Service Charge percentage"
                       />
                     </td>
 
@@ -594,13 +629,21 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
 
             <div className="space-y-2 mt-3 text-xs">
               <div className="flex justify-between text-slate-300">
-                <span>Subtotal (Base Charge):</span>
-                <span className="font-bold text-white">₹ {subtotal.toLocaleString('en-IN')}</span>
+                <span>Base Subtotal:</span>
+                <span className="font-bold text-white">₹ {rawSubtotal.toLocaleString('en-IN')}</span>
               </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Total Discount Allowed:</span>
-                <span className="font-bold text-rose-300">- ₹ {totalDiscount.toLocaleString('en-IN')}</span>
-              </div>
+              {totalAdminCharges > 0 && (
+                <div className="flex justify-between text-amber-300 font-semibold">
+                  <span>Admin / Service Charges:</span>
+                  <span className="font-bold">+ ₹ {totalAdminCharges.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              {totalDiscount > 0 && (
+                <div className="flex justify-between text-rose-300 font-semibold">
+                  <span>Total Discount Allowed:</span>
+                  <span className="font-bold">- ₹ {totalDiscount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-300">
                 <span>Estimated GST (Tax):</span>
                 <span className="font-bold text-emerald-300">+ ₹ {Math.round(totalGst).toLocaleString('en-IN')}</span>

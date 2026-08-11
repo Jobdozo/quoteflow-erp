@@ -26,6 +26,7 @@ import { AutoUpdateModal } from './components/common/AutoUpdateModal';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
 import { ZeroTrust, getUserRole } from './services/ZeroTrustService';
+import { generateCustomQuotationNumber } from './utils/numberGenerator';
 import { ShieldAlert } from 'lucide-react';
 
 import { StorageService } from './utils/storage';
@@ -390,14 +391,15 @@ export function App() {
   };
 
   const handleUseTemplate = (template: ProposalTemplate) => {
+    const cust = customers[0];
     const newDraft: Quotation = {
       id: `q-${Date.now()}`,
-      quotationNumber: `Q-2026-${Math.floor(100 + Math.random() * 900)}`,
-      customerId: customers[0]?.id || '',
-      customerName: customers[0]?.name || '',
-      companyName: customers[0]?.companyName || '',
-      customerEmail: customers[0]?.email || '',
-      customerMobile: customers[0]?.mobile || '',
+      quotationNumber: generateCustomQuotationNumber(cust?.companyName || settings.companyName, authorizedQuotations),
+      customerId: cust?.id || '',
+      customerName: cust?.name || '',
+      companyName: cust?.companyName || '',
+      customerEmail: cust?.email || '',
+      customerMobile: cust?.mobile || '',
       date: new Date().toISOString().split('T')[0],
       validityDays: 30,
       validUntil: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
@@ -529,6 +531,7 @@ export function App() {
               products={products}
               settings={settings}
               editingQuotation={editingQuotation}
+              quotations={authorizedQuotations}
               onSaveQuotation={handleSaveQuotation}
               onPreviewPDF={(q) => setPreviewQuotation(q)}
               onSendWhatsApp={handleLaunchWhatsApp}

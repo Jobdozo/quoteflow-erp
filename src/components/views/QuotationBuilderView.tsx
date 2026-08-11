@@ -28,11 +28,14 @@ import type {
 } from '../../types';
 import { zipconDefaultTerms } from '../../data/mockData';
 
+import { generateCustomQuotationNumber } from '../../utils/numberGenerator';
+
 interface QuotationBuilderViewProps {
   customers: Customer[];
   products: Product[];
   settings: CompanySettings;
   editingQuotation: Quotation | null;
+  quotations?: Quotation[];
   onSaveQuotation: (quotation: Quotation) => void;
   onPreviewPDF: (quotation: Quotation) => void;
   onSendWhatsApp: (quotation: Quotation) => void;
@@ -45,6 +48,7 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
   products,
   settings,
   editingQuotation,
+  quotations = [],
   onSaveQuotation,
   onPreviewPDF,
   onSendWhatsApp,
@@ -55,13 +59,26 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
   const [selectedCustomerId, setSelectedCustomerId] = useState(
     editingQuotation?.customerId || customers[0]?.id || ''
   );
-  const [quotationNumber, setQuotationNumber] = useState(
-    editingQuotation?.quotationNumber ||
-      `${settings.quotationPrefix}${Math.floor(100 + Math.random() * 900)}`
-  );
+
+  const selectedCustomer =
+    customers.find((c) => c.id === selectedCustomerId) || customers[0];
+
   const [date, setDate] = useState(
     editingQuotation?.date || new Date().toISOString().split('T')[0]
   );
+
+  const [quotationNumber, setQuotationNumber] = useState(
+    editingQuotation?.quotationNumber ||
+      generateCustomQuotationNumber(selectedCustomer?.companyName || settings.companyName, quotations, date)
+  );
+
+  useEffect(() => {
+    if (!editingQuotation) {
+      setQuotationNumber(
+        generateCustomQuotationNumber(selectedCustomer?.companyName || settings.companyName, quotations, date)
+      );
+    }
+  }, [selectedCustomerId, date, editingQuotation]);
   const [validityDays, setValidityDays] = useState(
     editingQuotation?.validityDays || 30
   );
@@ -92,9 +109,6 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
   )
     .toISOString()
     .split('T')[0];
-
-  const selectedCustomer =
-    customers.find((c) => c.id === selectedCustomerId) || customers[0];
 
   // Financial Calculations
   const rawSubtotal = items.reduce(

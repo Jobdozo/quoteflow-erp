@@ -7,6 +7,7 @@ import {
   recommendUpsellBundles,
   askGeminiAi,
 } from '../../services/GeminiService';
+import { DualAiEngine } from '../../services/AiService';
 
 interface FloatingAiAssistantProps {
   quotations: Quotation[];
@@ -87,8 +88,8 @@ export const FloatingAiAssistant: React.FC<FloatingAiAssistantProps> = ({
     setChatMessages((prev) => [...prev, { sender: 'user', text: userText }]);
     setAiThinking(true);
     try {
-      const response = await askGeminiAi(userText, `Total Active Quotations: ${quotations.length}`);
-      setChatMessages((prev) => [...prev, { sender: 'ai', text: response }]);
+      const response = await DualAiEngine.askDualAi(userText, `Total Active Quotations: ${quotations.length}`);
+      setChatMessages((prev) => [...prev, { sender: 'ai', text: `[Powered by ${response.provider}]\n\n${response.text}` }]);
     } catch (e) {
       setChatMessages((prev) => [...prev, { sender: 'ai', text: 'QuoteFlow AI is operational to assist with your sales pipeline.' }]);
     } finally {

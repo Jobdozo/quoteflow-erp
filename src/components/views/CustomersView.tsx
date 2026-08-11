@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Users, Plus, Search, Building2, Phone, Mail, FileText, Edit, Trash2, MapPin, X, Camera, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
 import { Customer } from '../../types';
-import { scanVisitingCardWithGemini } from '../../services/GeminiService';
+import { scanVisitingCardWithGemini, ScannedCardData } from '../../services/GeminiService';
+import { DualAiEngine } from '../../services/AiService';
 
 interface CustomersViewProps {
   customers: Customer[];
@@ -72,7 +73,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ customers, onSaveC
       if (event.target?.result) {
         const base64Data = event.target.result as string;
         try {
-          const scanned = await scanVisitingCardWithGemini(base64Data, file.type);
+          const scanned = await DualAiEngine.scanCard(base64Data, file.type);
           setScannedSummary(scanned);
 
           if (scanned.companyName) setCompanyName(scanned.companyName);

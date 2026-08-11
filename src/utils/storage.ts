@@ -176,6 +176,40 @@ export const StorageService = {
   },
 
   // Quotations
+  findQuotationByNumberOrId(query: string): Quotation | null {
+    if (!query) return null;
+    const clean = query.trim().toLowerCase();
+    const cleanAlpha = clean.replace(/[^a-zA-Z0-9]/g, '');
+
+    if (typeof localStorage === 'undefined') return null;
+
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes('quoteflow_quotations')) {
+          const item = localStorage.getItem(key);
+          if (item) {
+            const list: Quotation[] = JSON.parse(item);
+            const found = list.find((q) => {
+              if (!q) return false;
+              const qNum = (q.quotationNumber || '').toLowerCase();
+              const qId = (q.id || '').toLowerCase();
+              return (
+                qNum === clean ||
+                qId === clean ||
+                qNum.replace(/[^a-zA-Z0-9]/g, '') === cleanAlpha
+              );
+            });
+            if (found) return found;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('StorageService.findQuotationByNumberOrId error:', e);
+    }
+    return null;
+  },
+
   getQuotations(userId?: string): Quotation[] {
     return getItem(getScopedKey(BASE_KEYS.QUOTATIONS, userId), []);
   },

@@ -40,6 +40,33 @@ export const RealtimeDbQuotations = {
     }
   },
 
+  async getByNumberOrId(query: string): Promise<Quotation | null> {
+    try {
+      const clean = query.trim().toLowerCase();
+      const cleanAlpha = clean.replace(/[^a-zA-Z0-9]/g, '');
+      const snapshot = await get(ref(rtdb, 'tenants'));
+      const tenantsData = snapshot.val();
+      if (!tenantsData) return null;
+
+      for (const tenantKey of Object.keys(tenantsData)) {
+        const quotesObj = tenantsData[tenantKey]?.quotations;
+        if (quotesObj) {
+          const list = Object.values(quotesObj) as Quotation[];
+          const found = list.find(
+            (q) =>
+              (q.quotationNumber || '').toLowerCase() === clean ||
+              (q.id || '').toLowerCase() === clean ||
+              (q.quotationNumber || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase() === cleanAlpha
+          );
+          if (found) return found;
+        }
+      }
+    } catch (e) {
+      console.warn('RealtimeDbQuotations.getByNumberOrId error:', e);
+    }
+    return null;
+  },
+
   onValue(callback: (quotations: Quotation[]) => void, userOrEmail?: string) {
     try {
       const key = getTenantPathKey(userOrEmail);

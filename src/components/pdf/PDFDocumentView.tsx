@@ -254,27 +254,40 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
               </ol>
             </div>
 
-            {/* 7. BANK DETAILS & UPI NEFT QR CODE */}
-            <div className="my-2 grid grid-cols-2 gap-2 p-2 bg-[#f8fafc] rounded border border-[#cbd5e1] text-[9px]">
-              <div>
-                <p className="font-extrabold text-[#0B192C] uppercase">BANK NEFT / RTGS DETAILS</p>
-                <p>Bank: <strong>{settings.bankName}</strong> | Branch: {settings.branchName}</p>
-                <p>A/C: <strong className="font-mono">{settings.accountNumber}</strong> | IFSC: <strong className="font-mono">{settings.ifscCode}</strong></p>
-              </div>
-              <div className="flex items-center justify-end space-x-2">
-                <div className="text-right">
-                  <p className="font-bold text-[#0B192C] text-[8.5px]">SCAN TO PAY / VERIFY</p>
-                  <p className="text-[7.5px] text-[#64748b]">Instant Direct Transfer</p>
+            {/* 7. BANK DETAILS & UPI NEFT / VERIFY QR CODE */}
+            {(() => {
+              const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://jobdozo.github.io';
+              const pathUrl = typeof window !== 'undefined' ? window.location.pathname : '/quoteflow-erp/';
+              const verifyUrl = `${originUrl}${pathUrl}?verify=${encodeURIComponent(quotation.quotationNumber || quotation.id)}`;
+              return (
+                <div className="my-2 grid grid-cols-2 gap-2 p-2 bg-[#f8fafc] rounded border border-[#cbd5e1] text-[9px]">
+                  <div>
+                    <p className="font-extrabold text-[#0B192C] uppercase">BANK NEFT / RTGS DETAILS</p>
+                    <p>Bank: <strong>{settings.bankName}</strong> | Branch: {settings.branchName}</p>
+                    <p>A/C: <strong className="font-mono">{settings.accountNumber}</strong> | IFSC: <strong className="font-mono">{settings.ifscCode}</strong></p>
+                  </div>
+                  <div className="flex items-center justify-end space-x-2">
+                    <div className="text-right">
+                      <p className="font-bold text-[#0B192C] text-[8.5px]">SCAN TO PAY / VERIFY</p>
+                      <p className="text-[7.5px] text-[#4f46e5] font-bold">Scan to Download & Verify PDF</p>
+                    </div>
+                    <a
+                      href={verifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 bg-white p-0.5 rounded border border-[#cbd5e1] flex items-center justify-center shrink-0 hover:border-indigo-500 transition-colors"
+                      title="Scan or Click to Verify & Download Official Quotation PDF"
+                    >
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyUrl)}`}
+                        alt="Scan to Verify & Download Quotation"
+                        className="w-full h-full object-contain"
+                      />
+                    </a>
+                  </div>
                 </div>
-                <div className="w-9 h-9 bg-white p-0.5 rounded border border-[#cbd5e1] flex items-center justify-center shrink-0">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=UPI://${settings.accountNumber}@hdfcbank`}
-                    alt="Payment QR"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
 
           {/* 8. ACCEPTED BY & DUAL SIGNATURE BLOCK (MATCHING APEX REFERENCE FOOTER) */}

@@ -86,6 +86,7 @@ export function App() {
   const [selectedQuotationForWA, setSelectedQuotationForWA] = useState<Quotation | null>(null);
   const [selectedQuotationForEmail, setSelectedQuotationForEmail] = useState<Quotation | null>(null);
   const [showAutoUpdateModal, setShowAutoUpdateModal] = useState(false);
+  const [verifyQuotation, setVerifyQuotation] = useState<Quotation | null>(null);
 
   const targetUserKey = user?.email || user?.uid;
 
@@ -236,6 +237,78 @@ export function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const vId = params.get('verify') || params.get('quote') || params.get('id');
+    if (vId) {
+      const cleanId = vId.trim();
+      const localQ = StorageService.findQuotationByNumberOrId(cleanId) || quotations.find((q) => q.quotationNumber === cleanId || q.id === cleanId);
+      if (localQ) {
+        setVerifyQuotation(localQ);
+      } else {
+        RealtimeDbQuotations.getByNumberOrId(cleanId).then((cloudQ) => {
+          if (cloudQ) setVerifyQuotation(cloudQ);
+        });
+      }
+    }
+  }, [quotations]);
+
+  // ── PUBLIC SCAN TO VERIFY & DIRECT PDF DOWNLOAD OVERRIDE ─────────────────
+  if (verifyQuotation) {
+    return (
+      <div className="min-h-screen bg-slate-900 py-6 px-2 sm:px-6 flex flex-col items-center selection:bg-indigo-500 selection:text-white">
+        {/* Verification Status Header Bar */}
+        <div className="no-print max-w-[210mm] w-full bg-slate-800 p-4 rounded-2xl border border-emerald-500/40 shadow-2xl mb-6 text-white flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center font-black text-xl shrink-0">
+              ✓
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Official ZIPCON Verified Proposal</span>
+                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded text-[9px] font-mono border border-emerald-500/30">
+                  AUTHENTIC DOCUMENT
+                </span>
+              </div>
+              <h1 className="text-sm sm:text-base font-extrabold text-white">
+                Quotation #{verifyQuotation.quotationNumber} — {verifyQuotation.companyName}
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => window.print()}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 flex items-center space-x-2 transition-all cursor-pointer"
+            >
+              <span>⬇️ Download / Save Quotation PDF</span>
+            </button>
+            <button
+              onClick={() => {
+                window.history.pushState({}, '', window.location.pathname);
+                setVerifyQuotation(null);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        {/* Embedded PDF Viewer */}
+        <PDFDocumentView
+          quotation={verifyQuotation}
+          settings={settings}
+          onClose={() => {
+            window.history.pushState({}, '', window.location.pathname);
+            setVerifyQuotation(null);
+          }}
+        />
+      </div>
+    );
+  }
 
   // ── AUTH GATES PLACED AFTER ALL HOOKS ──────────────────────────────────
   if (authLoading) {

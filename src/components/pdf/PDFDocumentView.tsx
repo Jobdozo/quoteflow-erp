@@ -240,26 +240,30 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
 
             {/* CLIENT & SERVICE LOCATION CARD */}
             <div className="grid grid-cols-2 gap-3 bg-[#f8fafc] p-2.5 rounded-lg border border-[#e2e8f0] mb-3 text-[11px]">
-              <div className="border-r border-[#cbd5e1] pr-2">
-                <span className="font-extrabold text-[9px] text-[#1e1b4b] uppercase tracking-wider block mb-0.5">
+              <div className="border-r border-[#cbd5e1] pr-2 space-y-0.5">
+                <span className="font-extrabold text-[9px] text-[#1e1b4b] uppercase tracking-wider block">
                   CLIENT DETAILS (PREPARED FOR)
                 </span>
-                <p className="font-extrabold text-[#0f172a] text-xs">{quotation.customerName}</p>
-                <p className="font-bold text-[#4338ca]">{quotation.companyName}</p>
-                {quotation.customerGst && (
-                  <p className="text-[#475569] text-[10px]">GSTIN: <strong>{quotation.customerGst}</strong></p>
-                )}
-                <p className="text-[#64748b] text-[10px]">Mobile: {quotation.customerMobile} | Email: {quotation.customerEmail}</p>
+                <p className="font-extrabold text-[#0f172a] text-xs leading-none">
+                  {quotation.customerName}
+                </p>
+                <p className="font-bold text-[#4338ca] text-[11px] leading-tight">{quotation.companyName}</p>
+                <p className="text-[#334155] text-[10px] font-semibold">
+                  GSTIN: <strong className="text-[#0f172a] font-mono">{quotation.customerGst || 'Unregistered / NA'}</strong>
+                </p>
+                <p className="text-[#64748b] text-[10px]">
+                  Mobile: <strong className="text-[#1e293b]">{quotation.customerMobile || 'N/A'}</strong> | Email: <strong className="text-[#1e293b]">{quotation.customerEmail || 'N/A'}</strong>
+                </p>
               </div>
 
-              <div className="pl-1">
-                <span className="font-extrabold text-[9px] text-[#1e1b4b] uppercase tracking-wider block mb-0.5">
-                  SERVICE LOCATION & PROPOSAL METADATA
+              <div className="pl-1 space-y-0.5">
+                <span className="font-extrabold text-[9px] text-[#1e1b4b] uppercase tracking-wider block">
+                  SERVICE LOCATION & SITE ADDRESS
                 </span>
-                <p className="text-[#334155] text-[10px] leading-tight font-medium">
-                  {quotation.customerAddress || quotation.companyName}
+                <p className="text-[#1e293b] text-[10px] leading-tight font-semibold bg-white p-1.5 rounded border border-[#cbd5e1]/60">
+                  📍 {quotation.customerAddress || `${quotation.companyName}, Main Corporate Office / Operational Site`}
                 </p>
-                <div className="mt-1 flex items-center justify-between">
+                <div className="pt-1 flex items-center justify-between">
                   <span className="px-2 py-0.5 bg-[#d1fae5] text-[#065f46] font-extrabold rounded text-[9px] border border-[#a7f3d0]">
                     STATUS: {quotation.status.toUpperCase()}
                   </span>

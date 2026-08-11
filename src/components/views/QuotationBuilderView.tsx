@@ -79,6 +79,21 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
       );
     }
   }, [selectedCustomerId, date, editingQuotation]);
+
+  const [customerGst, setCustomerGst] = useState(
+    editingQuotation?.customerGst || selectedCustomer?.gstNumber || ''
+  );
+  const [customerAddress, setCustomerAddress] = useState(
+    editingQuotation?.customerAddress || selectedCustomer?.address || ''
+  );
+
+  useEffect(() => {
+    if (!editingQuotation && selectedCustomer) {
+      setCustomerGst(selectedCustomer.gstNumber || '');
+      setCustomerAddress(selectedCustomer.address || '');
+    }
+  }, [selectedCustomerId, selectedCustomer, editingQuotation]);
+
   const [validityDays, setValidityDays] = useState(
     editingQuotation?.validityDays || 30
   );
@@ -252,6 +267,8 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
       companyName: currentCust.companyName,
       customerEmail: currentCust.email,
       customerMobile: currentCust.mobile,
+      customerGst: customerGst || currentCust.gstNumber || '',
+      customerAddress: customerAddress || currentCust.address || '',
       date,
       validityDays,
       validUntil: validUntilDate,
@@ -307,6 +324,8 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
                   companyName: selectedCustomer?.companyName || 'Client Organization',
                   customerEmail: selectedCustomer?.email || '',
                   customerMobile: selectedCustomer?.mobile || '',
+                  customerGst: customerGst || selectedCustomer?.gstNumber || '',
+                  customerAddress: customerAddress || selectedCustomer?.address || '',
                   date,
                   validityDays,
                   validUntil: validUntilDate,
@@ -403,6 +422,35 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
               value={validityDays}
               onChange={(e) => setValidityDays(Number(e.target.value))}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-indigo-500 focus:bg-white"
+            />
+          </div>
+        </div>
+
+        {/* GSTIN & Service Location Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+              Client GSTIN Number
+            </label>
+            <input
+              type="text"
+              value={customerGst}
+              onChange={(e) => setCustomerGst(e.target.value)}
+              placeholder="e.g. 01AABCZ3825C1ZV or Unregistered"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+              Service Location & Site Address
+            </label>
+            <input
+              type="text"
+              value={customerAddress}
+              onChange={(e) => setCustomerAddress(e.target.value)}
+              placeholder="e.g. 33/1A JALALABAD SUNJWAN JAMMU, J&K"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500 focus:bg-white"
             />
           </div>
         </div>

@@ -103,7 +103,11 @@ export const QuotationBuilderView: React.FC<QuotationBuilderViewProps> = ({
   );
 
   const [terms, setTerms] = useState<string[]>(
-    editingQuotation?.terms?.length ? editingQuotation.terms : settings.defaultTerms || zipconDefaultTerms
+    editingQuotation?.terms?.length
+      ? editingQuotation.terms
+      : (settings.defaultTerms && settings.defaultTerms.length > 0
+          ? settings.defaultTerms
+          : zipconDefaultTerms)
   );
   const [newTermInput, setNewTermInput] = useState('');
   const [status, setStatus] = useState<QuotationStatus>(

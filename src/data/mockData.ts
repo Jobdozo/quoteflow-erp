@@ -9,7 +9,14 @@ import {
   MonthlyInvoice,
 } from '../types';
 
-export const zipconDefaultTerms: string[] = [];
+export const zipconDefaultTerms: string[] = [
+  'This cost sheet forms an integral part of Agreement / work order and must be signed and stamped for start-up of operations.',
+  'Above rates are Based On 26 Days Duty Pattern.',
+  'Quotation validity for 30 days.',
+  'GST will be Charged as per applicable.',
+  'Overtime will be charged beyond 8 hours duty on an hourly basis at twice the rate of the existing salary for all except the Management Team.',
+  'ZIPCON facility team salary break-up will be at sole discretion of ZIPCON Management. Annual cost revision of the Management team will be mutually decided and by default to be made applicable from the date of renewal/annual revision.',
+];
 
 export const initialCompanySettings: CompanySettings = {
   companyName: '',

@@ -29,13 +29,25 @@
   body * {
     visibility: hidden;
   }
-  #printable-pdf, #printable-pdf * {
-    visibility: visible;
+  .no-print {
+    display: none !important;
   }
-  #printable-pdf {
+  #printable-pdf, #printable-pdf *, .print-area, .print-area * {
+    visibility: visible !important;
+  }
+  #printable-pdf, .print-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .a4-page {
+    box-shadow: none !important;
+    border: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 }

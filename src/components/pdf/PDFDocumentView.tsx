@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Download, Printer, ArrowLeft, Send, Shield, Sparkles, Building, Mail, Phone, MapPin } from 'lucide-react';
 import type { Quotation, CompanySettings } from '../../types';
+import { zipconDefaultTerms } from '../../data/mockData';
 
 interface PDFDocumentViewProps {
   quotation: Quotation;
@@ -84,9 +85,9 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
       </div>
 
       {/* A4 PRINT CONTAINER */}
-      <div className="print-area flex justify-center w-full">
+      <div className="print-area flex justify-center w-full" id="printable-pdf">
         {/* EXECUTIVE PROJECT QUOTATION TEMPLATE (MATCHING APEX REFERENCE LAYOUT) */}
-        <div className="a4-page w-[210mm] h-[297mm] max-h-[297mm] bg-white text-[#0f172a] shadow-2xl border border-[#cbd5e1] p-7 flex flex-col justify-between relative overflow-hidden box-border">
+        <div className="a4-page w-[210mm] min-h-[297mm] bg-white text-[#0f172a] shadow-2xl border border-[#cbd5e1] p-7 flex flex-col justify-between relative box-border">
           
           {/* Top Corporate Dark Blue Accent Bar */}
           <div className="absolute top-0 left-0 right-0 h-3.5 bg-[#0B192C]" />
@@ -239,7 +240,13 @@ export const PDFDocumentView: React.FC<PDFDocumentViewProps> = ({
                 Terms & Conditions
               </h4>
               <ol className="list-decimal list-inside space-y-0.5 font-medium leading-tight text-[#1e293b]">
-                {quotation.terms.slice(0, 6).map((term, tIdx) => (
+                {(
+                  quotation.terms && quotation.terms.length > 0
+                    ? quotation.terms
+                    : (settings.defaultTerms && settings.defaultTerms.length > 0
+                        ? settings.defaultTerms
+                        : zipconDefaultTerms)
+                ).map((term, tIdx) => (
                   <li key={tIdx} className="pl-1">
                     <span>{term}</span>
                   </li>

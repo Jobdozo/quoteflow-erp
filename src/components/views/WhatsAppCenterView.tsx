@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { MessageSquare, Send, Upload, Check, CheckCheck, Smartphone, ExternalLink, Sparkles } from 'lucide-react';
 import { Quotation, CompanySettings } from '../../types';
+import { PDFDocumentView } from '../pdf/PDFDocumentView';
+import { generatePdfBlob } from '../../utils/pdfGenerator';
+import { FirebaseStorageService } from '../../firebase/FirebaseService';
 
 interface WhatsAppCenterViewProps {
   quotations: Quotation[];
@@ -41,9 +44,28 @@ export const WhatsAppCenterView: React.FC<WhatsAppCenterViewProps> = ({
     const cleanNumber = mobileNumber.replace(/[^0-9]/g, '');
     const fullNumber = cleanNumber.length === 10 ? `91${cleanNumber}` : cleanNumber;
     
-    setStatusLog('Dispatching message via API...');
+    setStatusLog('Preparing Dispatch...');
 
     try {
+      let finalMediaUrl = mediaUrl;
+      let finalFilename = filename;
+
+      if (sendAsMedia) {
+        setStatusLog('Generating Official PDF Document...');
+        try {
+          const blob = await generatePdfBlob('hidden-pdf-container');
+          setStatusLog('Uploading PDF to Secure Cloud...');
+          finalMediaUrl = await FirebaseStorageService.uploadQuotationPdf(blob, activeQuotation.id);
+          finalFilename = `${activeQuotation.quotationNumber}_Quotation.pdf`;
+        } catch (e) {
+          console.error('PDF Generation/Upload Error', e);
+          setStatusLog('Failed to generate or upload PDF. Aborting.');
+          return;
+        }
+      }
+
+      setStatusLog('Dispatching via Saasyto API...');
+      
       // Bypass CORS for client-side API requests using a proxy
       const apiUrl = 'https://web.saasyto.com/api/send';
       const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`;
@@ -58,8 +80,8 @@ export const WhatsAppCenterView: React.FC<WhatsAppCenterViewProps> = ({
           type: sendAsMedia ? 'media' : 'text',
           message: message,
           ...(sendAsMedia && {
-            media_url: mediaUrl,
-            filename: filename,
+            media_url: finalMediaUrl,
+            filename: finalFilename,
           }),
           instance_id: '6A7C58B9D44FC',
           access_token: '6a7c58a4d5560',
@@ -255,6 +277,11 @@ export const WhatsAppCenterView: React.FC<WhatsAppCenterViewProps> = ({
             </div>
           </div>
         </div>
+      </div>
+      
+      {/* Hidden PDF container for background generation */}
+      <div id="hidden-pdf-container" style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: '210mm' }}>
+        <PDFDocumentView quotation={activeQuotation} settings={settings} />
       </div>
     </div>
   );

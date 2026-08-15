@@ -14,7 +14,8 @@ import {
   onSnapshot,
   limit,
 } from 'firebase/firestore';
-import { db, COMPANY_ID } from './config';
+import { db, COMPANY_ID, storage } from './config';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type {
   Quotation,
   MonthlyInvoice,
@@ -453,4 +454,25 @@ export const FirebaseAudit = {
       return () => {};
     }
   },
+};
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────
+export const FirebaseStorageService = {
+  async uploadQuotationPdf(blob: Blob, quotationId: string, userId?: string): Promise<string> {
+    try {
+      const tenantId = getCompanyDocId(userId);
+      const fileName = `whatsapp_pdfs/${tenantId}/${quotationId}_${Date.now()}.pdf`;
+      const storageRef = ref(storage, fileName);
+      
+      const snapshot = await uploadBytes(storageRef, blob, {
+        contentType: 'application/pdf',
+      });
+      
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+      return downloadUrl;
+    } catch (e) {
+      console.error('FirebaseStorageService.uploadQuotationPdf error:', e);
+      throw e;
+    }
+  }
 };

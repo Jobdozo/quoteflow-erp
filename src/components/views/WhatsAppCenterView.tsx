@@ -57,9 +57,9 @@ export const WhatsAppCenterView: React.FC<WhatsAppCenterViewProps> = ({
           setStatusLog('Uploading PDF to Secure Cloud...');
           finalMediaUrl = await FirebaseStorageService.uploadQuotationPdf(blob, activeQuotation.id);
           finalFilename = `${activeQuotation.quotationNumber}_Quotation.pdf`;
-        } catch (e) {
+        } catch (e: any) {
           console.error('PDF Generation/Upload Error', e);
-          setStatusLog('Failed to generate or upload PDF. Aborting.');
+          setStatusLog(`Error: ${e?.message || 'Failed to generate or upload PDF'}`);
           return;
         }
       }

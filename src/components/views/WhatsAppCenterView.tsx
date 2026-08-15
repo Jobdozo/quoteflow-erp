@@ -44,8 +44,11 @@ export const WhatsAppCenterView: React.FC<WhatsAppCenterViewProps> = ({
     setStatusLog('Dispatching message via API...');
 
     try {
-      // Build Waziper/Saasyto API endpoint and parameters
-      const response = await fetch('https://web.saasyto.com/api/send', {
+      // Bypass CORS for client-side API requests using a proxy
+      const apiUrl = 'https://web.saasyto.com/api/send';
+      const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`;
+
+      const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

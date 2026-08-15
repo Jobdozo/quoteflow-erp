@@ -189,7 +189,7 @@ export interface FollowUp {
   scheduledDate: string;
   type: 'Call' | 'WhatsApp' | 'Email' | 'Meeting';
   status: 'Pending' | 'Completed' | 'Overdue';
-  reminderStage: '2 Days' | '5 Days' | '7 Days' | '15 Days';
+  reminderStage: string;
   notes: string;
   amount: number;
 }

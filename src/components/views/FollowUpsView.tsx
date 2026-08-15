@@ -351,17 +351,15 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">CRM Stage</label>
-                  <select
+                  <label className="block font-bold text-slate-700 mb-1">CRM Stage (Customizable)</label>
+                  <input
+                    type="text"
+                    required
                     value={reminderStage}
-                    onChange={(e) => setReminderStage(e.target.value as any)}
+                    onChange={(e) => setReminderStage(e.target.value)}
+                    placeholder="e.g. Day 2, Post-Sale, First Visit"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
-                  >
-                    <option value="2 Days">Day 2 (Call)</option>
-                    <option value="5 Days">Day 5 (WhatsApp)</option>
-                    <option value="7 Days">Day 7 (Email)</option>
-                    <option value="15 Days">Day 15 (Close)</option>
-                  </select>
+                  />
                 </div>
               </div>
 

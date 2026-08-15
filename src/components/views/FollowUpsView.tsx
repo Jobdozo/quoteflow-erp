@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { Clock, Phone, MessageSquare, Mail, Calendar, CheckCircle2, AlertCircle, Plus, X } from 'lucide-react';
-import { FollowUp } from '../../types';
+import { FollowUp, Customer, CompanySettings } from '../../types';
 
 interface FollowUpsViewProps {
   followUps: FollowUp[];
+  customers: Customer[];
+  settings: CompanySettings;
   onSaveFollowUp: (followUp: FollowUp) => void;
   onDeleteFollowUp: (id: string) => void;
 }
 
 export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   followUps,
+  customers,
+  settings,
   onSaveFollowUp,
   onDeleteFollowUp,
 }) => {
@@ -17,14 +21,44 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   const [showModal, setShowModal] = useState(false);
 
   // Modal Form State
-  const [quotationNumber, setQuotationNumber] = useState('Q-2026-125');
-  const [customerName, setCustomerName] = useState('Amit Sharma');
-  const [companyName, setCompanyName] = useState('VMart Retail Ltd.');
+  const [quotationNumber, setQuotationNumber] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [customerMobile, setCustomerMobile] = useState('');
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
   const [type, setType] = useState<FollowUp['type']>('Call');
   const [reminderStage, setReminderStage] = useState<FollowUp['reminderStage']>('2 Days');
   const [notes, setNotes] = useState('');
-  const [amount, setAmount] = useState<number>(125000);
+  const [amount, setAmount] = useState<number>(0);
+  const [template, setTemplate] = useState('Custom');
+  
+  // API State
+  const [dispatchingId, setDispatchingId] = useState<string | null>(null);
+
+  const predefinedTemplates = {
+    'Custom': '',
+    'Pending Bill': 'Follow-up for pending bill payment.',
+    'Quotation Update': 'Quotation related update.',
+    'Monthly Feedback': 'Monthly one feedback follow-up for company record.'
+  };
+
+  const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value as keyof typeof predefinedTemplates;
+    setTemplate(val);
+    if (val !== 'Custom') {
+      setNotes(predefinedTemplates[val]);
+    }
+  };
+
+  const handleCompanyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const cName = e.target.value;
+    setCompanyName(cName);
+    const selectedCustomer = customers.find(c => c.companyName === cName);
+    if (selectedCustomer) {
+      setCustomerName(selectedCustomer.name);
+      setCustomerMobile(selectedCustomer.mobile);
+    }
+  };
 
   const filteredFollowUps = followUps.filter((f) => filter === 'All' || f.status === filter);
 
@@ -32,9 +66,9 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
     e.preventDefault();
     const newFu: FollowUp = {
       id: `fu-${Date.now()}`,
-      quotationId: 'q-125',
-      quotationNumber,
-      customerName,
+      quotationId: '',
+      quotationNumber: quotationNumber || 'N/A',
+      customerName: customerName || 'N/A',
       companyName,
       scheduledDate,
       type,
@@ -49,6 +83,53 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
   const markCompleted = (fu: FollowUp) => {
     onSaveFollowUp({ ...fu, status: 'Completed' });
+  };
+
+  const handleSendWhatsApp = async (fu: FollowUp) => {
+    // Find customer to get the mobile number
+    const targetCustomer = customers.find(c => c.companyName === fu.companyName);
+    const mobileNum = targetCustomer?.mobile;
+    if (!mobileNum) {
+      alert("No mobile number found for this customer.");
+      return;
+    }
+    
+    setDispatchingId(fu.id);
+    const cleanNumber = mobileNum.replace(/[^0-9]/g, '');
+    const fullNumber = cleanNumber.length === 10 ? `91${cleanNumber}` : cleanNumber;
+
+    const message = `Dear ${fu.customerName},\n\n${fu.notes}\n\nRegards,\n${settings.companyName}`;
+
+    try {
+      const apiUrl = 'https://web.saasyto.com/api/send';
+      const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`;
+
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          number: fullNumber,
+          type: 'text',
+          message: message,
+          instance_id: '6A7C58B9D44FC',
+          access_token: '6a7c58a4d5560',
+        }),
+      });
+
+      if (response.ok) {
+        alert("WhatsApp message sent successfully via Saasyto API!");
+        markCompleted(fu);
+      } else {
+        alert("Failed to send WhatsApp message.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error dispatching API request.");
+    } finally {
+      setDispatchingId(null);
+    }
   };
 
   return (
@@ -178,13 +259,25 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
               </div>
 
               {fu.status !== 'Completed' && (
-                <button
-                  onClick={() => markCompleted(fu)}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center space-x-1"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Mark Done</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  {fu.type === 'WhatsApp' && (
+                    <button
+                      onClick={() => handleSendWhatsApp(fu)}
+                      disabled={dispatchingId === fu.id}
+                      className="px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white font-bold text-xs rounded-xl shadow-sm flex items-center space-x-1 transition-colors disabled:opacity-50"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>{dispatchingId === fu.id ? 'Sending...' : '1-Click Send'}</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => markCompleted(fu)}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center space-x-1"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Done</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -209,13 +302,17 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Company Name</label>
-                  <input
-                    type="text"
+                  <select
                     required
                     value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
+                    onChange={handleCompanyChange}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
-                  />
+                  >
+                    <option value="" disabled>Select Registered Company</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.companyName}>{c.companyName}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Quotation No.</label>
@@ -260,22 +357,23 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                     onChange={(e) => setReminderStage(e.target.value as any)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none"
                   >
-                    <option value="2 Days">2 Days</option>
-                    <option value="5 Days">5 Days</option>
-                    <option value="7 Days">7 Days</option>
-                    <option value="15 Days">15 Days</option>
+                    <option value="2 Days">Day 2 (Call)</option>
+                    <option value="5 Days">Day 5 (WhatsApp)</option>
+                    <option value="7 Days">Day 7 (Email)</option>
+                    <option value="15 Days">Day 15 (Close)</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Interaction Notes</label>
+                <label className="block font-bold text-slate-700 mb-1">Interaction Notes / Message</label>
                 <textarea
-                  rows={2}
+                  required
+                  rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Record customer comments or required follow-up action..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 outline-none resize-none"
+                  placeholder="Record customer comments or write your message here..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 outline-none resize-none"
                 />
               </div>
 

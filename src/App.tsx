@@ -708,6 +708,8 @@ export function App() {
           {currentTab === 'follow-ups' && (
             <FollowUpsView
               followUps={authorizedFollowUps}
+              customers={customers}
+              settings={settings}
               onSaveFollowUp={handleSaveFollowUp}
               onDeleteFollowUp={handleDeleteFollowUp}
             />

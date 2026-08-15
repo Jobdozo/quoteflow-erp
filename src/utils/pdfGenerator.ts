@@ -1,4 +1,4 @@
-import html2canvas from 'html2canvas';
+import { toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
 
 export const generatePdfBlob = async (elementId: string): Promise<Blob> => {
@@ -12,15 +12,17 @@ export const generatePdfBlob = async (elementId: string): Promise<Blob> => {
   const originalVisibility = element.style.visibility;
   
   try {
-    const canvas = await html2canvas(element, {
-      scale: 2, // Higher resolution
-      useCORS: true,
-      logging: false,
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
+    // Generate JPEG data URL directly from the DOM using html-to-image
+    // This avoids html2canvas CSS parsing errors for modern features like oklch
+    const imgData = await toJpeg(element, {
+      quality: 0.95,
+      pixelRatio: 2, // Higher resolution
+      style: {
+        // Temporarily reset transforms or styles if needed for capture
+        transform: 'none',
+      }
     });
     
-    const imgData = canvas.toDataURL('image/jpeg', 1.0);
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -28,7 +30,8 @@ export const generatePdfBlob = async (elementId: string): Promise<Blob> => {
     });
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    // Maintain aspect ratio based on element dimensions
+    const pdfHeight = (element.scrollHeight * pdfWidth) / element.scrollWidth;
 
     let heightLeft = pdfHeight;
     let position = 0;

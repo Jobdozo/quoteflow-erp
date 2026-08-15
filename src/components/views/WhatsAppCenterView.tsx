@@ -19,25 +19,61 @@ export const WhatsAppCenterView: React.FC<WhatsAppCenterViewProps> = ({
   const [mobileNumber, setMobileNumber] = useState(defaultQuote?.customerMobile || '9876543210');
   const [customerName, setCustomerName] = useState(defaultQuote?.customerName || 'Amit Ji');
   const [message, setMessage] = useState(
-    `Dear ${defaultQuote?.customerName || 'Amit Ji'},\n\nThank you for your interest in our services.\n\nPlease find attached our quotation #${defaultQuote?.quotationNumber || 'Q-2026-125'} for ${defaultQuote?.companyName || 'VMart Retail Ltd.'}.\nTotal Value: ₹${(defaultQuote?.grandTotal || 125000).toLocaleString('en-IN')}.\n\nRegards,\n${settings.companyName}\n\n☎ ${settings.phone}\nEmail: ${settings.email}`
+    `Dear ${defaultQuote?.customerName || 'Amit Ji'},\n\nThank you for your interest in our services.\n\nPlease find attached our quotation #${defaultQuote?.quotationNumber || 'Q-2026-125'} for ${defaultQuote?.companyName || 'VMart Retail Ltd.'}.\nTotal Value: ₹${(defaultQuote?.grandTotal || 125000).toLocaleString('en-IN')}.\n\nView & Download PDF:\nhttps://${window.location.host}/?verify=${defaultQuote?.id || 'TEST'}\n\nRegards,\n${settings.companyName}\n\n☎ ${settings.phone}\nEmail: ${settings.email}`
   );
   const [statusLog, setStatusLog] = useState<string>('Ready to dispatch');
+  
+  // Media payload states
+  const [sendAsMedia, setSendAsMedia] = useState(false);
+  const [mediaUrl, setMediaUrl] = useState('https://i.pravatar.cc');
+  const [filename, setFilename] = useState('file_test.pdf');
 
   const handleSelectQuotation = (q: Quotation) => {
     setActiveQuotation(q);
     setMobileNumber(q.customerMobile);
     setCustomerName(q.customerName);
     setMessage(
-      `Dear ${q.customerName},\n\nThank you for your interest in our services.\n\nPlease find attached our quotation #${q.quotationNumber} for ${q.companyName}.\nTotal Value: ₹${q.grandTotal.toLocaleString('en-IN')}.\n\nRegards,\n${settings.companyName}\n\n☎ ${settings.phone}\nEmail: ${settings.email}`
+      `Dear ${q.customerName},\n\nThank you for your interest in our services.\n\nPlease find attached our quotation #${q.quotationNumber} for ${q.companyName}.\nTotal Value: ₹${q.grandTotal.toLocaleString('en-IN')}.\n\nView & Download PDF:\nhttps://${window.location.host}/?verify=${q.id}\n\nRegards,\n${settings.companyName}\n\n☎ ${settings.phone}\nEmail: ${settings.email}`
     );
   };
 
-  const handleLaunchWhatsApp = () => {
+  const handleLaunchWhatsApp = async () => {
     const cleanNumber = mobileNumber.replace(/[^0-9]/g, '');
-    const encodedText = encodeURIComponent(message);
-    const waUrl = `https://wa.me/91${cleanNumber}?text=${encodedText}`;
-    window.open(waUrl, '_blank');
-    setStatusLog(`Dispatched via WhatsApp API to +91 ${cleanNumber} at ${new Date().toLocaleTimeString()}`);
+    const fullNumber = cleanNumber.length === 10 ? `91${cleanNumber}` : cleanNumber;
+    
+    setStatusLog('Dispatching message via API...');
+
+    try {
+      // Build Waziper/Saasyto API endpoint and parameters
+      const response = await fetch('https://web.saasyto.com/api/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          number: fullNumber,
+          type: sendAsMedia ? 'media' : 'text',
+          message: message,
+          ...(sendAsMedia && {
+            media_url: mediaUrl,
+            filename: filename,
+          }),
+          instance_id: '6A7C58B9D44FC',
+          access_token: '6a7c58a4d5560',
+        }),
+      });
+
+      if (response.ok) {
+        setStatusLog(`Delivered via Saasyto API to +${fullNumber} at ${new Date().toLocaleTimeString()}`);
+      } else {
+        const errorData = await response.text();
+        setStatusLog(`Failed: API returned status ${response.status}`);
+        console.error('WhatsApp API Error:', errorData);
+      }
+    } catch (error: any) {
+      setStatusLog(`Error: ${error.message}`);
+      console.error('WhatsApp API Exception:', error);
+    }
   };
 
   return (
@@ -105,6 +141,47 @@ export const WhatsAppCenterView: React.FC<WhatsAppCenterViewProps> = ({
               </div>
             </div>
 
+            {/* Media Attachment Options */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="sendAsMedia"
+                  checked={sendAsMedia}
+                  onChange={(e) => setSendAsMedia(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                />
+                <label htmlFor="sendAsMedia" className="text-xs font-bold text-slate-700">
+                  Send as Media / Document (API requires public URL)
+                </label>
+              </div>
+
+              {sendAsMedia && (
+                <div className="grid grid-cols-2 gap-3 text-xs pt-2">
+                  <div>
+                    <label className="block font-semibold text-slate-600 mb-1">Media URL</label>
+                    <input
+                      type="text"
+                      value={mediaUrl}
+                      onChange={(e) => setMediaUrl(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-emerald-500"
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-600 mb-1">Filename</label>
+                    <input
+                      type="text"
+                      value={filename}
+                      onChange={(e) => setFilename(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 outline-none focus:border-emerald-500"
+                      placeholder="file_test.pdf"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Message Text</label>
               <textarea
@@ -120,7 +197,7 @@ export const WhatsAppCenterView: React.FC<WhatsAppCenterViewProps> = ({
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-2xl shadow-lg shadow-emerald-600/30 flex items-center justify-center space-x-2 transition-all"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Send PDF & Message via WhatsApp</span>
+              <span>Send Document & Message via API</span>
               <ExternalLink className="w-4 h-4" />
             </button>
 
